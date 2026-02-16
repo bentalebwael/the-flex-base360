@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     secret_key: str = "debug_challenge_secret"
     
+    # Database pool settings (parsed from DATABASE_URL for database_pool.py)
+    supabase_db_user: str = "postgres"
+    supabase_db_password: str = "postgres"
+    supabase_db_host: str = "db"
+    supabase_db_port: str = "5432"
+    supabase_db_name: str = "propertyflow"
+
     # Optional legacy settings
     supabase_url: Optional[str] = None
     supabase_service_role_key: Optional[str] = None
