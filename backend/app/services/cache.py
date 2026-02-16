@@ -12,10 +12,8 @@ async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any
     """
     if not tenant_id:
         raise ValueError("tenant_id is required for cache isolation")
-    
     if not property_id:
         raise ValueError("property_id is required")
-    
     cache_key = f"revenue:{tenant_id}:{property_id}"
     
     # Try to get from cache
