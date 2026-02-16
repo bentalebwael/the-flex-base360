@@ -47,11 +47,11 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType>({
   isCollapsed: false,
-  setIsCollapsed: () => { },
+  setIsCollapsed: () => {},
   isMobileOpen: false,
-  setIsMobileOpen: () => { },
+  setIsMobileOpen: () => {},
   submenuOpen: null,
-  setSubmenuOpen: () => { },
+  setSubmenuOpen: () => {},
 });
 
 export const useSidebar = () => {
@@ -59,11 +59,11 @@ export const useSidebar = () => {
   if (!context) {
     return {
       isCollapsed: false,
-      setIsCollapsed: () => { },
+      setIsCollapsed: () => {},
       isMobileOpen: false,
-      setIsMobileOpen: () => { },
+      setIsMobileOpen: () => {},
       submenuOpen: null,
-      setSubmenuOpen: () => { },
+      setSubmenuOpen: () => {},
     };
   }
   return context;
@@ -98,7 +98,7 @@ function AppWrapper() {
       console.error("Failed to initialize localStorage:", error);
       if (
         confirm(
-          "LocalStorage appears to be corrupted. Would you like to clear it and reload the app?"
+          "LocalStorage appears to be corrupted. Would you like to clear it and reload the app?",
         )
       ) {
         localStorage.clear();
@@ -193,15 +193,27 @@ function AppContent() {
                       <Routes>
                         {/* Dashboard - Blank Canvas */}
                         <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/properties" element={<PropertiesList />} />
-                        <Route path="/reservations" element={<ReservationsList />} />
-                        <Route path="/cleaning" element={<CleaningAssignments />} />
+                        <Route
+                          path="/properties"
+                          element={<PropertiesList />}
+                        />
+                        <Route
+                          path="/reservations"
+                          element={<ReservationsList />}
+                        />
+                        <Route
+                          path="/cleaning"
+                          element={<CleaningAssignments />}
+                        />
 
                         {/* Profile - Minimal */}
                         <Route path="/profile" element={<ProfilePage />} />
 
                         {/* Default redirect */}
-                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                        <Route
+                          path="*"
+                          element={<Navigate to="/dashboard" replace />}
+                        />
                       </Routes>
                     </main>
                   </div>

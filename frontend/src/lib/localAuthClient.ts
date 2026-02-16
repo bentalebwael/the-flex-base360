@@ -32,7 +32,7 @@ interface SignInCredentials {
 class LocalAuthClient {
   private subscribers: ((event: string, session: AuthSession | null) => void)[] = [];
   private session: AuthSession | null = null;
-  private storageKey = 'base360-auth-token';
+  public storageKey = 'base360-auth-token';
 
   constructor() {
     this.loadSession();

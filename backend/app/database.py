@@ -298,6 +298,7 @@ try:
             def __init__(self, user=None, data=None):
                 self.user = user
                 self.data = data if data is not None else []
+                self.error = None
 
         class ChallengeAuth:
             def get_user(self, token):
@@ -347,12 +348,14 @@ try:
             def __init__(self):
                 self.auth = ChallengeAuth()
                 self.service = self
+                self._current_table = None
 
             def __getattr__(self, name):
                 # Return self for chaining (e.g. table().select())
                 return lambda *args, **kwargs: self
             
-            def table(self, *args):
+            def table(self, name):
+                 self._current_table = name
                  return self
             
             def select(self, *args):
@@ -365,7 +368,15 @@ try:
                 return self
 
             def execute(self):
-                # Return empty data for DB queries
+                # Return mock data for properties table
+                if self._current_table == 'properties':
+                    return MockResponse(data=[
+                        {"id": "prop-1", "name": "Sunset Apartments", "tenant_id": "tenant-a", "status": "active"},
+                        {"id": "prop-2", "name": "Downtown Loft", "tenant_id": "tenant-a", "status": "active"},
+                        {"id": "prop-3", "name": "Seaside Villa", "tenant_id": "tenant-a", "status": "active"}
+                    ])
+                
+                # Return empty data for other DB queries
                 return MockResponse()
 
         _base_client = ChallengeClient()
