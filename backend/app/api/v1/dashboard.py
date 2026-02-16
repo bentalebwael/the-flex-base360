@@ -41,7 +41,7 @@ async def get_dashboard_properties(
             raise HTTPException(status_code=400, detail="Tenant ID is missing")
 
         # Select columns available in the table
-        query = supabase.table('properties').select('id, name, tenant_id').eq('status', 'active')
+        query = supabase.table('properties').select('id, name, tenant_id')
         
         # Filter by tenant_id
         query = query.eq('tenant_id', tenant_id)

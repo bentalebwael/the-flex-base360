@@ -344,43 +344,135 @@ try:
                         return MockResponse(user=u)
                 return MockResponse(user=None)
 
-        class ChallengeClient:
-            def __init__(self):
-                self.auth = ChallengeAuth()
-                self.service = self
-                self._current_table = None
-
-            def __getattr__(self, name):
-                # Return self for chaining (e.g. table().select())
-                return lambda *args, **kwargs: self
+        # Try to import things needed for local DB access
+        print("DEBUG: Attempting to initialize LocalDbClient...")
+        try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            from .config import settings
+            print(f"DEBUG: psycopg2 imported. DB URL: {settings.database_url}")
             
-            def table(self, name):
-                 self._current_table = name
-                 return self
-            
-            def select(self, *args):
-                return self
-            
-            def eq(self, *args):
-                return self
+            class LocalDbClient:
+                def __init__(self, db_url):
+                    self.db_url = db_url
+                    self.auth = ChallengeAuth()
+                    self.service = self
+                    self._current_table = None
+                    self._select = "*"
+                    self._filters = {}
+                    
+                def __getattr__(self, name):
+                    return lambda *args, **kwargs: self
                 
-            def in_(self, *args):
-                return self
-
-            def execute(self):
-                # Return mock data for properties table
-                if self._current_table == 'properties':
-                    return MockResponse(data=[
-                        {"id": "prop-1", "name": "Sunset Apartments", "tenant_id": "tenant-a", "status": "active"},
-                        {"id": "prop-2", "name": "Downtown Loft", "tenant_id": "tenant-a", "status": "active"},
-                        {"id": "prop-3", "name": "Seaside Villa", "tenant_id": "tenant-a", "status": "active"}
-                    ])
+                def table(self, name):
+                    self._current_table = name
+                    self._select = "*"
+                    self._filters = {}
+                    return self
                 
-                # Return empty data for other DB queries
-                return MockResponse()
-
-        _base_client = ChallengeClient()
-        supabase = ChallengeClient() # Type: ignore
+                def select(self, columns):
+                    self._select = columns
+                    return self
+                
+                def eq(self, column, value):
+                    self._filters[column] = value
+                    return self
+                    
+                def in_(self, column, values):
+                    # Simple in implementation
+                    if values:
+                        self._filters[f"{column}_in"] = tuple(values)
+                    return self
+    
+                def execute(self):
+                    print(f"DEBUG: LocalDbClient executing query on {self._current_table}")
+                    if not self._current_table:
+                        return MockResponse()
+                        
+                    try:
+                        # Basic SQL construction
+                        cols = self._select
+                        if cols != "*":
+                            pass
+                            
+                        sql = f"SELECT {cols} FROM {self._current_table}"
+                        params = []
+                        
+                        if self._filters:
+                            sql += " WHERE "
+                            conditions = []
+                            for col, val in self._filters.items():
+                                if col.endswith("_in"):
+                                    real_col = col[:-3]
+                                    conditions.append(f"{real_col} IN %s")
+                                    params.append(val)
+                                else:
+                                    conditions.append(f"{col} = %s")
+                                    params.append(val)
+                            sql += " AND ".join(conditions)
+                        
+                        print(f"DEBUG: SQL: {sql} Params: {params}")
+                        
+                        # Execute against local DB
+                        conn = psycopg2.connect(self.db_url)
+                        cur = conn.cursor(cursor_factory=RealDictCursor)
+                        cur.execute(sql, tuple(params))
+                        rows = cur.fetchall()
+                        conn.close()
+                        
+                        # Convert UUIDs and timestamps to strings to match Supabase response
+                        final_rows = []
+                        for row in rows:
+                            new_row = {}
+                            for k, v in row.items():
+                                new_row[k] = str(v) if v is not None else None
+                            final_rows.append(new_row)
+                            
+                        return MockResponse(data=final_rows)
+                        
+                    except Exception as e:
+                        logger.error(f"Local DB query failed: {e}")
+                        return MockResponse()
+    
+            _base_client = LocalDbClient(settings.database_url)
+            supabase = LocalDbClient(settings.database_url) # Type: ignore
+            logger.info(f"✅ Initialized LocalDbClient connected to {settings.database_url}")
+            
+        except ImportError as e:
+            logger.warning(f"psycopg2 not found or import failed: {e}")
+            # Fallback to original mock if psycopg2 missing
+            class ChallengeClient:
+                def __init__(self):
+                    self.auth = ChallengeAuth()
+                    self.service = self
+                    self._current_table = None
+    
+                def __getattr__(self, name):
+                    return lambda *args, **kwargs: self
+                
+                def table(self, name):
+                     self._current_table = name
+                     return self
+                
+                def select(self, *args):
+                     return self
+                
+                def eq(self, *args):
+                    return self
+                    
+                def in_(self, *args):
+                    return self
+    
+                def execute(self):
+                    print("DEBUG: Using ChallengeClient (Fallback Mock)")
+                    if self._current_table == 'properties':
+                        return MockResponse(data=[
+                            {"id": "prop-ERR", "name": "ERROR: USING MOCK CLIENT", "tenant_id": "tenant-a", "status": "active"},
+                        ])
+                    return MockResponse()
+    
+            _base_client = ChallengeClient()
+            supabase = ChallengeClient() # Type: ignore
 
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {e}")
