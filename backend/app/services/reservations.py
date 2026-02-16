@@ -1,3 +1,4 @@
+import pytz
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
@@ -89,14 +90,20 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
         print(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
         
         # Create property-specific mock data for testing when DB is unavailable
-        # This ensures each property shows different figures
-        mock_data = {
+        # This ensures each property shows different figures and is tenant-aware
+        mock_data_tenant_a = {
             'prop-001': {'total': '1000.00', 'count': 3},
             'prop-002': {'total': '4975.50', 'count': 4}, 
             'prop-003': {'total': '6100.50', 'count': 2},
+        }
+        
+        mock_data_tenant_b = {
+            'prop-001': {'total': '2500.00', 'count': 5}, # prop-001 is different for tenant-b
             'prop-004': {'total': '1776.50', 'count': 4},
             'prop-005': {'total': '3256.00', 'count': 3}
         }
+        
+        mock_data = mock_data_tenant_a if tenant_id == "tenant-a" else mock_data_tenant_b
         
         mock_property_data = mock_data.get(property_id, {'total': '0.00', 'count': 0})
         

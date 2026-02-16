@@ -1468,6 +1468,20 @@ export class SecureAPIClient {
     return this.request<any>(`/api/v1/dashboard/summary?${queryParams}`, requestOptions);
   }
 
+  /**
+   * Get properties for the dashboard with optional simulation header
+   */
+  async getDashboardProperties(options?: { simulatedTenant?: string }) {
+    const requestOptions: RequestInit = {};
+    if (options?.simulatedTenant) {
+      requestOptions.headers = {
+        'X-Simulated-Tenant': options.simulatedTenant
+      };
+    }
+
+    return this.request<any>('/api/v1/dashboard/properties', requestOptions);
+  }
+
   async uploadCompanyLogo(logo_url: string) {
     return this.request<any>('/api/v1/company-settings/logo', {
       method: 'POST',
