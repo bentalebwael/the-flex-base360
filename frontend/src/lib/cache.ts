@@ -9,14 +9,15 @@ const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
 const CACHE_PREFIX = 'finance_cache_';
 
 export class FinanceCache {
-  private static generateKey(key: string, filters?: Record<string, any>): string {
+  private static generateKey(key: string, filters?: Record<string, any>, tenantId?: string): string {
     const filterString = filters ? JSON.stringify(filters) : '';
-    return `${CACHE_PREFIX}${key}_${btoa(filterString)}`;
+    const tenantPrefix = tenantId ? `${tenantId}_` : '';
+    return `${CACHE_PREFIX}${tenantPrefix}${key}_${btoa(filterString)}`;
   }
 
-  static set<T>(key: string, data: T, filters?: Record<string, any>): void {
+  static set<T>(key: string, data: T, filters?: Record<string, any>, tenantId?: string): void {
     try {
-      const cacheKey = this.generateKey(key, filters);
+      const cacheKey = this.generateKey(key, filters, tenantId);
       const now = Date.now();
       const cacheItem: CacheItem<T> = {
         data,
@@ -31,9 +32,9 @@ export class FinanceCache {
     }
   }
 
-  static get<T>(key: string, filters?: Record<string, any>): T | null {
+  static get<T>(key: string, filters?: Record<string, any>, tenantId?: string): T | null {
     try {
-      const cacheKey = this.generateKey(key, filters);
+      const cacheKey = this.generateKey(key, filters, tenantId);
       const cached = localStorage.getItem(cacheKey);
       
       if (!cached) {
@@ -58,9 +59,9 @@ export class FinanceCache {
     }
   }
 
-  static invalidate(key: string, filters?: Record<string, any>): void {
+  static invalidate(key: string, filters?: Record<string, any>, tenantId?: string): void {
     try {
-      const cacheKey = this.generateKey(key, filters);
+      const cacheKey = this.generateKey(key, filters, tenantId);
       localStorage.removeItem(cacheKey);
       console.log(`Cache invalidated for key: ${key}`);
     } catch (error) {
@@ -80,9 +81,9 @@ export class FinanceCache {
     }
   }
 
-  static getCacheInfo(key: string, filters?: Record<string, any>): { exists: boolean; expiresAt?: number; timeRemaining?: number } {
+  static getCacheInfo(key: string, filters?: Record<string, any>, tenantId?: string): { exists: boolean; expiresAt?: number; timeRemaining?: number } {
     try {
-      const cacheKey = this.generateKey(key, filters);
+      const cacheKey = this.generateKey(key, filters, tenantId);
       const cached = localStorage.getItem(cacheKey);
       
       if (!cached) {
@@ -103,8 +104,8 @@ export class FinanceCache {
     }
   }
 
-  static getTimeUntilExpiry(key: string, filters?: Record<string, any>): string {
-    const info = this.getCacheInfo(key, filters);
+  static getTimeUntilExpiry(key: string, filters?: Record<string, any>, tenantId?: string): string {
+    const info = this.getCacheInfo(key, filters, tenantId);
     
     if (!info.exists || !info.timeRemaining) {
       return 'No cache';
