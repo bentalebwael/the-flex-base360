@@ -53,15 +53,15 @@ export function extractTenantFromSession(session: any): string | null {
 
   try {
     const claims = decodeJWTPayload(session.access_token);
-    const tenantId = claims?.tenant_id;
-    
+    const tenantId = claims?.tenant_id ?? claims?.app_metadata?.tenant_id ?? null;
+
     if (tenantId) {
       if (import.meta.env.DEV) {
         console.log('[JWT] Extracted tenant_id from claims:', tenantId);
       }
       return tenantId;
     }
-    
+
     return null;
   } catch (error) {
     console.error('[JWT] Error extracting tenant from session:', error);
