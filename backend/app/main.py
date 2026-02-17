@@ -114,6 +114,15 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("ℹ️ Redis not connected - cache invalidation will work locally only (single worker mode)")
 
+    # Initialize database pool (for reservations/dashboard)
+    try:
+        from .core.database_pool import db_pool
+
+        await db_pool.initialize()
+        logger.info("✅ Database connection pool initialized")
+    except Exception as e:
+        logger.warning(f"Database pool initialization failed: {e}")
+
     # Start async processor background cleanup
     from .core.async_processing import async_processor
     async_processor.start_background_cleanup()
@@ -126,6 +135,15 @@ async def lifespan(app: FastAPI):
     # Shutdown async processor
     await async_processor.shutdown()
     logger.info("Async processor shutdown completed")
+
+    # Close database pool
+    try:
+        from .core.database_pool import db_pool
+
+        await db_pool.close()
+        logger.info("✅ Database connection pool closed")
+    except Exception as e:
+        logger.warning(f"⚠️ Error closing database pool: {e}")
 
     # Close connection pool
     try:
