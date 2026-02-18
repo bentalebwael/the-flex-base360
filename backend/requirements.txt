@@ -1,4 +1,6 @@
 # Auth Skeleton Dependencies - Core only
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
 aiohttp
 aioredis>=2.0.0
 cachetools==6.2.0
