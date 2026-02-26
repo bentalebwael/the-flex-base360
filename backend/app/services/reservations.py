@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, Any, List
 
@@ -33,17 +33,22 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
 
 async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
     """
-    Aggregates revenue from database.
+    Aggregates revenue for the current month (UTC) from database based on check_in_date.
     """
     try:
-        # Import database pool
-        from app.core.database_pool import DatabasePool
+        from app.core.database_pool import db_pool
         
-        # Initialize pool if needed
-        db_pool = DatabasePool()
         await db_pool.initialize()
         
         if db_pool.session_factory:
+            # Calculate current month window in UTC
+            now_utc = datetime.now(timezone.utc)
+            month_start = now_utc.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if month_start.month == 12:
+                next_month_start = month_start.replace(year=month_start.year + 1, month=1)
+            else:
+                next_month_start = month_start.replace(month=month_start.month + 1)
+
             async with db_pool.get_session() as session:
                 # Use SQLAlchemy text for raw SQL
                 from sqlalchemy import text
@@ -54,13 +59,18 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                         SUM(total_amount) as total_revenue,
                         COUNT(*) as reservation_count
                     FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
+                    WHERE property_id = :property_id 
+                    AND tenant_id = :tenant_id
+                    AND check_in_date >= :month_start
+                    AND check_in_date < :next_month_start
                     GROUP BY property_id
                 """)
                 
                 result = await session.execute(query, {
                     "property_id": property_id, 
-                    "tenant_id": tenant_id
+                    "tenant_id": tenant_id,
+                    "month_start": month_start,
+                    "next_month_start": next_month_start
                 })
                 row = result.fetchone()
                 
