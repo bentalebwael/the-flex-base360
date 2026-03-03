@@ -50,11 +50,15 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                 
                 query = text("""
                     SELECT 
-                        property_id,
-                        SUM(total_amount) as total_revenue,
-                        COUNT(*) as reservation_count
-                    FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
+                        r.property_id,
+                        SUM(r.total_amount) as total_revenue,
+                        COUNT(r.*) as reservation_count
+                    FROM reservations r
+                    JOIN properties p on p.id = r.property_id and p.tenant_id = r.tenant_id
+                    WHERE property_id = :property_id
+                        AND tenant_id = :tenant_id
+                        AND (r.check_in_date at time zone p.timezone) >= date_trunc('month', now() at time zone p.timezone)
+                        AND (r.check_in_date at time zone p.timezone) < (date_trunc('month', now() at time zone p.timezone) + interval '1 month')
                     GROUP BY property_id
                 """)
                 
