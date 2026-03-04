@@ -89,6 +89,8 @@ class TenantResolver:
             return "tenant-a"
             
         # Default fallback
+        # this shouldn't be here, it will fallback to tenant-a for any other email
+        # TODO: make this fail correctly without 'gracefully' falling back to actual tenant data
         return "tenant-a"
 
     @staticmethod

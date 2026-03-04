@@ -87,6 +87,9 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             
     except Exception as e:
         print(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
+        # catching this exception in all cases returns hardcoded mock data irrespective of tenant_id
+        # i'm pretty sure this will always happen when running locally without SQLAlchemy configuration
+        # TODO: maybe get rid of this? still thinking, it will return properties even if they dont belong
         
         # Create property-specific mock data for testing when DB is unavailable
         # This ensures each property shows different figures

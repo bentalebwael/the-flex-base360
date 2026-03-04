@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { RevenueSummary } from "./RevenueSummary";
 
+// obviously hard coded all the properties into the front-end in a static drop-down
+// TODO: fix this
 const PROPERTIES = [
   { id: 'prop-001', name: 'Beach House Alpha' },
   { id: 'prop-002', name: 'City Apartment Downtown' },
