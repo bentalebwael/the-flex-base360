@@ -11,7 +11,7 @@
 
 import { supabase } from './supabase';
 import { sessionManager } from '../utils/sessionManager';
-import { withRetry, handleApiError, classifyError } from '../utils/apiErrorHandler';
+// import { withRetry, handleApiError, classifyError } from '../utils/apiErrorHandler';
 
 // Get backend URL with fallback for misconfigured production environments
 const getBackendUrl = () => {
@@ -74,7 +74,7 @@ export class SecureAPIClient {
   private interceptDirectQueries() {
     if (import.meta.env.DEV) {
       const ENFORCE = (import.meta.env as any).VITE_ENFORCE_SECURE_API === 'true';
-      const originalFrom = supabase.from;
+      const originalFrom = (supabase as any).from;
       // Temporary dev allowlist for legacy direct queries while migrating to SecureAPI
       const DEV_ALLOWLIST = new Set([
         'user_permissions',
@@ -84,7 +84,7 @@ export class SecureAPIClient {
         'landlord_details'
       ]);
 
-      supabase.from = (table: string) => {
+      (supabase as any).from = (table: string) => {
         const stack = new Error().stack || '';
         const violation = `SECURITY VIOLATION: Direct Supabase query to table '${table}'`;
 
@@ -186,7 +186,7 @@ export class SecureAPIClient {
         // Check if it's a valid JWT
         else if (token.includes('.') && token.split('.').length === 3) {
           const payload = JSON.parse(atob(token.split('.')[1]));
-          extractedTenantId = payload.user_metadata?.tenant_id || payload.tenant_id;
+          extractedTenantId = payload.app_metadata?.tenant_id || payload.user_metadata?.tenant_id || payload.tenant_id;
         }
 
         if (extractedTenantId) {
@@ -245,7 +245,9 @@ export class SecureAPIClient {
   private isValidTenantId(tenantId: string): boolean {
     // Check for UUID format (basic validation)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return typeof tenantId === 'string' && tenantId.length > 0 && uuidRegex.test(tenantId);
+    // Also accept tenant-* format used by this system
+    const tenantIdRegex = /^tenant-[a-z0-9]+$/;
+    return typeof tenantId === 'string' && tenantId.length > 0 && (uuidRegex.test(tenantId) || tenantIdRegex.test(tenantId));
   }
 
   /**
@@ -264,7 +266,7 @@ export class SecureAPIClient {
     let cleared = 0;
     const keysToDelete: string[] = [];
 
-    for (const [key, value] of this.requestCache.entries()) {
+    for (const [key, _value] of this.requestCache.entries()) {
       if (key.includes(endpointPattern)) {
         keysToDelete.push(key);
         cleared++;
@@ -277,7 +279,7 @@ export class SecureAPIClient {
 
     // Also clear pending requests
     const pendingKeysToDelete: string[] = [];
-    for (const [key, promise] of this.pendingRequests.entries()) {
+    for (const [key, _promise] of this.pendingRequests.entries()) {
       if (key.includes(endpointPattern)) {
         pendingKeysToDelete.push(key);
       }
@@ -405,9 +407,6 @@ export class SecureAPIClient {
       return true; // Cache all other endpoints normally
     }
 
-    // Check if result looks valid for cleaning data
-    const items = data?.items || data?.data || [];
-    const total = data?.total || 0;
 
     // Always cache properly structured responses, even if empty
     // Empty results can be legitimate for users without tenant access or specific date ranges
@@ -437,9 +436,6 @@ export class SecureAPIClient {
     // during rapid tab switching. The 3-second invalidation was causing cache thrashing.
     const CLEANING_CACHE_TTL = 30000; // 30 seconds instead of 3 seconds
 
-    // For cleaning endpoints, use extended cache time but validate content
-    const items = cachedData?.items || cachedData?.data || [];
-    const total = cachedData?.total || 0;
 
     // Primary validation: check cache age with more reasonable timeout
     if (cacheAge > CLEANING_CACHE_TTL) {
@@ -492,7 +488,7 @@ export class SecureAPIClient {
 
     // Fast path
     const initial = await supabase.auth.getSession();
-    if (initial.data.session?.access_token) return initial.data.session;
+    if (initial.data.session?.access_token) return initial.data.session as any;
     const storageToken = getTokenFromStorage();
     if (storageToken) {
       // Construct a minimal session object shape with access_token
@@ -507,7 +503,7 @@ export class SecureAPIClient {
         if (!resolved && session?.access_token) {
           resolved = true;
           if (unsubscribe) unsubscribe();
-          resolve(session);
+          resolve(session as any);
         }
       });
       unsubscribe = () => data.subscription.unsubscribe();
@@ -530,7 +526,7 @@ export class SecureAPIClient {
 
     const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
     const result = await Promise.race([sessionPromise, pollingPromise, timeoutPromise]);
-    if (unsubscribe) unsubscribe();
+    if (unsubscribe) (unsubscribe as any)();
     return result;
   }
 
