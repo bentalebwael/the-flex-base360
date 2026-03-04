@@ -54,7 +54,10 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                         SUM(total_amount) as total_revenue,
                         COUNT(*) as reservation_count
                     FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
+                    WHERE property_id = :property_id 
+                    AND tenant_id = :tenant_id
+                    AND check_in_date >= :start_date
+                    AND check_in_date < :end_date
                     GROUP BY property_id
                 """)
                 
