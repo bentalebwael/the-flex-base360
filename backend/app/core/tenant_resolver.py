@@ -80,6 +80,11 @@ class TenantResolver:
         Returns:
             Tenant ID
         """
+        # TODO: rewrite this.
+        # 1) use the JWT token first (tenant_id should be embedded)
+        # 2) then try database
+        # 3) then raise error
+
         # Fallback mapping by known user email.
         if user_email == "sunset@propertyflow.com":
             return "tenant-a"
@@ -88,10 +93,8 @@ class TenantResolver:
         if user_email == "candidate@propertyflow.com":
             return "tenant-a"
             
-        # Default fallback
-        # this shouldn't be here, it will fallback to tenant-a for any other email
-        # TODO: make this fail correctly without 'gracefully' falling back to actual tenant data
-        return "tenant-a"
+        
+        raise ValueError(f"Unable to resolve tenant for user {user_email} — no tenant mapping found.")
 
     @staticmethod
     async def update_user_tenant_metadata(user_id: str, tenant_id: str) -> None:
