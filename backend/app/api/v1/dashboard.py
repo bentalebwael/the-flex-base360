@@ -3,6 +3,7 @@ from typing import Dict, Any
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
 from datetime import datetime
+from datetime import timezone
 from dateutil.relativedelta import relativedelta
 
 router = APIRouter()
@@ -20,14 +21,16 @@ async def get_dashboard_summary(
     if not tenant_id:
         raise HTTPException(status_code=403, detail="Invalid tenant context")
     
-    start_date = datetime(year, month, 1)
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
+
+    start_date = datetime(year, month, 1, tzinfo=timezone.utc)
     end_date = start_date + relativedelta(months=1)
 
     revenue_data = await get_revenue_summary(
         property_id, 
         tenant_id, start_date, end_date
     )
-        )
     
     # total_revenue_float = float(revenue_data['total'])
 
