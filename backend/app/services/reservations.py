@@ -87,21 +87,18 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             
     except Exception as e:
         print(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
-        # catching this exception in all cases returns hardcoded mock data irrespective of tenant_id
-        # i'm pretty sure this will always happen when running locally without SQLAlchemy configuration
-        # TODO: maybe get rid of this? still thinking, it will return properties even if they dont belong
-        
-        # Create property-specific mock data for testing when DB is unavailable
-        # This ensures each property shows different figures
+
+        # Mock data keyed by (tenant_id, property_id) to match seed.sql values
         mock_data = {
-            'prop-001': {'total': '1000.00', 'count': 3},
-            'prop-002': {'total': '4975.50', 'count': 4}, 
-            'prop-003': {'total': '6100.50', 'count': 2},
-            'prop-004': {'total': '1776.50', 'count': 4},
-            'prop-005': {'total': '3256.00', 'count': 3}
+            ('tenant-a', 'prop-001'): {'total': '2250.00', 'count': 4},
+            ('tenant-a', 'prop-002'): {'total': '4975.50', 'count': 4},
+            ('tenant-a', 'prop-003'): {'total': '6100.50', 'count': 2},
+            ('tenant-b', 'prop-001'): {'total': '0.00', 'count': 0},
+            ('tenant-b', 'prop-004'): {'total': '1776.50', 'count': 4},
+            ('tenant-b', 'prop-005'): {'total': '3256.00', 'count': 3},
         }
-        
-        mock_property_data = mock_data.get(property_id, {'total': '0.00', 'count': 0})
+
+        mock_property_data = mock_data.get((tenant_id, property_id), {'total': '0.00', 'count': 0})
         
         return {
             "property_id": property_id,

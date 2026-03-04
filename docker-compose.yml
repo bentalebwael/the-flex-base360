@@ -11,9 +11,15 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/propertyflow
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=debug_challenge_secret
+      - SUPABASE_URL=http://supabase-proxy:80
+      - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXMiLCJpc3MiOiJzdXBhYmFzZSJ9.DPCRK9Jzi7srWm84Wvn1UP4MBIOFT3_bukqAj6oSKyQ
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      supabase-proxy:
+        condition: service_started
+      redis:
+        condition: service_started
     volumes:
       - ./backend:/app
 
@@ -22,7 +28,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:80" # Mapping internal 80 (nginx) to 3000
+      - "3000:80"
     environment:
       - VITE_API_URL=http://localhost:8000
     depends_on:
@@ -37,16 +43,41 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      # Initialize DB with schema and seeds
       - ./database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
       - ./database/seed.sql:/docker-entrypoint-initdb.d/2-seed.sql
       # Ephemeral storage for easy reset (comment out to persist)
       # - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Wait until the seed data is loaded, not just until postgres accepts connections
+      test: ["CMD-SHELL", "psql -U postgres -d propertyflow -c 'SELECT 1 FROM properties LIMIT 1' > /dev/null 2>&1"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  postgrest:
+    image: postgrest/postgrest:latest
+    environment:
+      - PGRST_DB_URI=postgresql://postgres:postgres@db:5432/propertyflow
+      - PGRST_DB_SCHEMA=public
+      - PGRST_DB_ANON_ROLE=postgres
+      - PGRST_JWT_SECRET=debug_challenge_secret_for_local
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  supabase-proxy:
+    image: nginx:alpine
+    volumes:
+      - ./postgrest-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - postgrest
+    restart: always
 
   redis:
     image: redis:alpine
     ports:
-      - "6380:6379" # Maps internal 6379 to host 6380 to avoid local conflicts
+      - "6380:6379"
 
 volumes:
   pgdata:

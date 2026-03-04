@@ -1448,6 +1448,11 @@ export class SecureAPIClient {
     });
   }
 
+  // ============= PROPERTIES API =============
+  async getProperties() {
+    return this.request<any[]>('/api/v1/properties');
+  }
+
   // ============= DASHBOARD API =============
   /**
    * Get dashboard summary with optional simulation header

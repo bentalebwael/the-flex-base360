@@ -1,6 +1,22 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Roles required by PostgREST
+-- service_role bypasses RLS (used by backend for trusted server-side queries)
+-- anon is the unauthenticated role
+DO $$ BEGIN
+  CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  CREATE ROLE anon NOLOGIN NOINHERIT;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+GRANT USAGE ON SCHEMA public TO service_role, anon;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+
 -- Tenants Table
 CREATE TABLE tenants (
     id TEXT PRIMARY KEY,
