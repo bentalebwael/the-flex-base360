@@ -11,6 +11,12 @@ def _next_month_start(year: int, month: int) -> datetime:
     return datetime(year + 1, 1, 1)
 
 
+def _previous_month(year: int, month: int) -> Tuple[int, int]:
+    if month > 1:
+        return month - 1, year
+    return 12, year - 1
+
+
 def _validate_month_year(month: int, year: int) -> None:
     if month < 1 or month > 12:
         raise ValueError("month must be between 1 and 12")
@@ -142,6 +148,10 @@ async def calculate_total_revenue(
                     "property_id": property_id,
                     "tenant_id": tenant_id,
                     "total": "0.00",
+                    "total_all_time": "0.00",
+                    "previous_month_total": "0.00",
+                    "revenue_change_percent": "0.00",
+                    "revenue_trend_direction": "flat",
                     "currency": "USD",
                     "count": 0,
                     "report_month": None,
@@ -184,10 +194,82 @@ async def calculate_total_revenue(
         total_revenue = Decimal(str(row.total_revenue if row else "0"))
         reservation_count = int(row.reservation_count if row else 0)
 
+        all_time_summary_query = text(
+            """
+            SELECT COALESCE(SUM(total_amount), 0) AS total_revenue_all_time
+            FROM reservations
+            WHERE property_id = :property_id
+              AND tenant_id = :tenant_id
+            """
+        )
+        all_time_result = await session.execute(
+            all_time_summary_query,
+            {
+                "property_id": property_id,
+                "tenant_id": tenant_id,
+            },
+        )
+        all_time_row = all_time_result.fetchone()
+        total_revenue_all_time = Decimal(
+            str(all_time_row.total_revenue_all_time if all_time_row else "0")
+        )
+
+        previous_month, previous_year = _previous_month(report_year, report_month)
+        previous_period_start = datetime(previous_year, previous_month, 1)
+        previous_period_end = datetime(report_year, report_month, 1)
+
+        previous_month_query = text(
+            """
+            SELECT COALESCE(SUM(total_amount), 0) AS previous_month_total
+            FROM reservations
+            WHERE property_id = :property_id
+              AND tenant_id = :tenant_id
+              AND (check_in_date AT TIME ZONE :property_timezone) >= :previous_period_start
+              AND (check_in_date AT TIME ZONE :property_timezone) < :previous_period_end
+            """
+        )
+        previous_month_result = await session.execute(
+            previous_month_query,
+            {
+                "property_id": property_id,
+                "tenant_id": tenant_id,
+                "property_timezone": property_timezone,
+                "previous_period_start": previous_period_start,
+                "previous_period_end": previous_period_end,
+            },
+        )
+        previous_month_row = previous_month_result.fetchone()
+        previous_month_total = Decimal(
+            str(previous_month_row.previous_month_total if previous_month_row else "0")
+        )
+
+        revenue_delta = total_revenue - previous_month_total
+        if previous_month_total == 0:
+            revenue_change_percent: Optional[Decimal] = (
+                Decimal("0") if revenue_delta == 0 else None
+            )
+        else:
+            revenue_change_percent = (revenue_delta / previous_month_total) * Decimal("100")
+
+        if revenue_delta > 0:
+            revenue_trend_direction = "up"
+        elif revenue_delta < 0:
+            revenue_trend_direction = "down"
+        else:
+            revenue_trend_direction = "flat"
+
         return {
             "property_id": property_id,
             "tenant_id": tenant_id,
             "total": str(total_revenue),
+            "total_all_time": str(total_revenue_all_time),
+            "previous_month_total": str(previous_month_total),
+            "revenue_change_percent": (
+                str(revenue_change_percent)
+                if revenue_change_percent is not None
+                else None
+            ),
+            "revenue_trend_direction": revenue_trend_direction,
             "currency": "USD",
             "count": reservation_count,
             "report_month": report_month,

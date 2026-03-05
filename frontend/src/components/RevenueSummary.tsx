@@ -4,17 +4,49 @@ import { SecureAPI } from '../lib/secureApi';
 interface RevenueData {
     property_id: string;
     total_revenue: string;
+    total_revenue_all_time: string;
+    previous_month_revenue?: string;
+    revenue_change_percent?: string | null;
+    revenue_trend_direction?: "up" | "down" | "flat" | null;
     currency: string;
     reservations_count: number;
+    report_month?: number | null;
+    report_year?: number | null;
+    property_timezone?: string | null;
 }
 
 interface RevenueSummaryProps {
     propertyId?: string;
+    month?: number;
+    year?: number;
+    onReportPeriodResolved?: (month: number, year: number) => void;
     debugTenant?: string; 
     showRaw?: boolean;
 }
 
-export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'prop-001', debugTenant, showRaw }) => {
+const MONTH_LABELS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+
+export const RevenueSummary: React.FC<RevenueSummaryProps> = ({
+    propertyId = 'prop-001',
+    month,
+    year,
+    onReportPeriodResolved,
+    debugTenant,
+    showRaw,
+}) => {
     const [data, setData] = useState<RevenueData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -29,9 +61,18 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
                 // We pass the simulatedTenant option which SecureAPI will attach as a header
                 const response = await SecureAPI.getDashboardSummary(propertyId, {
                     simulatedTenant: activeTenant,
+                    month,
+                    year,
                     timestamp: Date.now()
                 });
                 setData(response);
+                if (
+                    onReportPeriodResolved &&
+                    typeof response?.report_month === "number" &&
+                    typeof response?.report_year === "number"
+                ) {
+                    onReportPeriodResolved(response.report_month, response.report_year);
+                }
             } catch (err) {
                 setError('Failed to load revenue data');
                 console.error(err);
@@ -41,7 +82,7 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
         };
 
         fetchRevenue();
-    }, [propertyId, activeTenant]);
+    }, [propertyId, activeTenant, month, year, onReportPeriodResolved]);
 
     if (loading) {
         return (
@@ -77,6 +118,63 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
         return !!fraction && fraction.length > 2;
     })();
 
+    const periodLabel = (() => {
+        if (typeof data.report_month === "number" && typeof data.report_year === "number") {
+            const monthName = MONTH_LABELS[data.report_month - 1] || `Month ${data.report_month}`;
+            return `${monthName} ${data.report_year}`;
+        }
+        return "Latest month";
+    })();
+
+    const trendBadge = (() => {
+        const direction =
+            data.revenue_trend_direction === "up" ||
+            data.revenue_trend_direction === "down" ||
+            data.revenue_trend_direction === "flat"
+                ? data.revenue_trend_direction
+                : "flat";
+
+        const parsedPercent = (() => {
+            if (typeof data.revenue_change_percent !== "string") {
+                return null;
+            }
+            const value = Number(data.revenue_change_percent);
+            return Number.isFinite(value) ? value : null;
+        })();
+
+        const label =
+            parsedPercent === null
+                ? (direction === "up" ? "New" : direction === "down" ? "N/A" : "0.00%")
+                : `${Math.abs(parsedPercent).toFixed(2)}%`;
+
+        if (direction === "down") {
+            return {
+                label,
+                containerClass: "bg-red-100 text-red-800",
+                iconClass: "text-red-500",
+                iconPath:
+                    "M14.707 10.293a1 1 0 00-1.414 0L11 12.586V5a1 1 0 10-2 0v7.586L6.707 10.293a1 1 0 10-1.414 1.414l4 4a1 1 0 001.414 0l4-4a1 1 0 000-1.414z",
+            };
+        }
+
+        if (direction === "flat") {
+            return {
+                label,
+                containerClass: "bg-gray-100 text-gray-700",
+                iconClass: "text-gray-500",
+                iconPath: "M5 10a1 1 0 100 2h10a1 1 0 100-2H5z",
+            };
+        }
+
+        return {
+            label,
+            containerClass: "bg-green-100 text-green-800",
+            iconClass: "text-green-500",
+            iconPath:
+                "M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z",
+        };
+    })();
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
             {showRaw && (
@@ -89,17 +187,24 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
             <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Revenue</h2>
+                        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Revenue ({periodLabel})</h2>
                         <div className="flex items-baseline gap-2 mt-1">
                             <span className="text-3xl font-bold text-gray-900 tracking-tight">
                                 {data.currency} {formatAmount(data.total_revenue)}
                             </span>
-                            {/* Fake trend indicator for premium feel */}
-                            <span className="inline-flex items-baseline px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 md:mt-2 lg:mt-0">
-                                <svg className="-ml-1 mr-0.5 h-3 w-3 flex-shrink-0 self-center text-green-500" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                                    <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            <span
+                                className={`inline-flex items-baseline px-2.5 py-0.5 rounded-full text-xs font-medium md:mt-2 lg:mt-0 ${trendBadge.containerClass}`}
+                                title="Compared with previous month"
+                            >
+                                <svg
+                                    className={`-ml-1 mr-0.5 h-3 w-3 flex-shrink-0 self-center ${trendBadge.iconClass}`}
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                    aria-hidden="true"
+                                >
+                                    <path fillRule="evenodd" d={trendBadge.iconPath} clipRule="evenodd" />
                                 </svg>
-                                12%
+                                {trendBadge.label}
                             </span>
                         </div>
                     </div>
@@ -114,6 +219,18 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
                         <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Reservations</p>
                         <p className="text-sm font-semibold text-gray-700 mt-1">{data.reservations_count} <span className="font-normal text-gray-400">bookings</span></p>
                     </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Total Revenue (All Time)</p>
+                    <p className="text-xl font-semibold text-gray-900 mt-1">
+                        {data.currency} {formatAmount(data.total_revenue_all_time || "0")}
+                    </p>
+                    {data.property_timezone && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            Reporting timezone: {data.property_timezone}
+                        </p>
+                    )}
                 </div>
 
                 {/* Precision Warning Area */}

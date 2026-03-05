@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { RevenueSummary } from "./RevenueSummary";
 import { SecureAPI } from "../lib/secureApi";
 
@@ -8,9 +8,29 @@ interface DashboardProperty {
   timezone?: string;
 }
 
+const MONTH_OPTIONS = [
+  { value: 1, label: "January" },
+  { value: 2, label: "February" },
+  { value: 3, label: "March" },
+  { value: 4, label: "April" },
+  { value: 5, label: "May" },
+  { value: 6, label: "June" },
+  { value: 7, label: "July" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "October" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
+];
+
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 10 }, (_, index) => CURRENT_YEAR - index);
+
 const Dashboard: React.FC = () => {
   const [properties, setProperties] = useState<DashboardProperty[]>([]);
   const [selectedProperty, setSelectedProperty] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<number | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<number | undefined>(undefined);
   const [isLoadingProperties, setIsLoadingProperties] = useState(true);
   const [propertiesError, setPropertiesError] = useState("");
 
@@ -60,6 +80,12 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const hasProperties = properties.length > 0;
+  const disableFilters = isLoadingProperties || !hasProperties;
+
+  const handleReportPeriodResolved = useCallback((month: number, year: number) => {
+    setSelectedMonth((current) => current ?? month);
+    setSelectedYear((current) => current ?? year);
+  }, []);
 
   return (
     <div className="p-4 lg:p-6 min-h-full">
@@ -77,28 +103,68 @@ const Dashboard: React.FC = () => {
               </div>
               
               {/* Property Selector */}
-              <div className="flex flex-col sm:items-end">
-                <label className="text-xs font-medium text-gray-700 mb-1">Select Property</label>
-                <select
-                  value={selectedProperty}
-                  onChange={(e) => setSelectedProperty(e.target.value)}
-                  disabled={isLoadingProperties || !hasProperties}
-                  className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                >
-                  {isLoadingProperties && (
-                    <option value="">Loading properties...</option>
-                  )}
-                  {!isLoadingProperties && !hasProperties && (
-                    <option value="">No properties available</option>
-                  )}
-                  {!isLoadingProperties && properties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full sm:w-auto">
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-700 mb-1">Select Property</label>
+                  <select
+                    value={selectedProperty}
+                    onChange={(e) => setSelectedProperty(e.target.value)}
+                    disabled={disableFilters}
+                    className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    {isLoadingProperties && (
+                      <option value="">Loading properties...</option>
+                    )}
+                    {!isLoadingProperties && !hasProperties && (
+                      <option value="">No properties available</option>
+                    )}
+                    {!isLoadingProperties && properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-700 mb-1">Month</label>
+                  <select
+                    value={selectedMonth ?? ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedMonth(value ? Number(value) : undefined);
+                    }}
+                    disabled={disableFilters}
+                    className="block w-full sm:w-auto min-w-[150px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">Latest</option>
+                    {MONTH_OPTIONS.map((month) => (
+                      <option key={month.value} value={month.value}>
+                        {month.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-medium text-gray-700 mb-1">Year</label>
+                  <select
+                    value={selectedYear ?? ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedYear(value ? Number(value) : undefined);
+                    }}
+                    disabled={disableFilters}
+                    className="block w-full sm:w-auto min-w-[120px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  >
+                    <option value="">Latest</option>
+                    {YEAR_OPTIONS.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {propertiesError && (
-                  <p className="mt-2 text-xs text-red-600">{propertiesError}</p>
+                  <p className="text-xs text-red-600 sm:col-span-3">{propertiesError}</p>
                 )}
               </div>
             </div>
@@ -106,7 +172,12 @@ const Dashboard: React.FC = () => {
 
           <div className="space-y-6">
             {selectedProperty ? (
-              <RevenueSummary propertyId={selectedProperty} />
+              <RevenueSummary
+                propertyId={selectedProperty}
+                month={selectedMonth}
+                year={selectedYear}
+                onReportPeriodResolved={handleReportPeriodResolved}
+              />
             ) : (
               <div className="text-sm text-gray-500">No property selected.</div>
             )}
