@@ -20,7 +20,6 @@ interface RevenueSummaryProps {
     month?: number;
     year?: number;
     onReportPeriodResolved?: (month: number, year: number) => void;
-    debugTenant?: string; 
     showRaw?: boolean;
 }
 
@@ -44,23 +43,17 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({
     month,
     year,
     onReportPeriodResolved,
-    debugTenant,
     showRaw,
 }) => {
     const [data, setData] = useState<RevenueData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const activeTenant = debugTenant || 'candidate';
-
     useEffect(() => {
         const fetchRevenue = async () => {
             setLoading(true);
             try {
-                // Use SecureAPI to handle authentication automatically
-                // We pass the simulatedTenant option which SecureAPI will attach as a header
                 const response = await SecureAPI.getDashboardSummary(propertyId, {
-                    simulatedTenant: activeTenant,
                     month,
                     year,
                     timestamp: Date.now()
@@ -82,7 +75,7 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({
         };
 
         fetchRevenue();
-    }, [propertyId, activeTenant, month, year, onReportPeriodResolved]);
+    }, [propertyId, month, year, onReportPeriodResolved]);
 
     if (loading) {
         return (
