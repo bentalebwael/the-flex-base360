@@ -23,6 +23,7 @@ const MONTH_OPTIONS = [
   { value: 12, label: "December" },
 ];
 
+const CURRENT_MONTH = new Date().getMonth() + 1;
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, index) => CURRENT_YEAR - index);
 
@@ -82,6 +83,26 @@ const Dashboard: React.FC = () => {
   const hasProperties = properties.length > 0;
   const disableFilters = isLoadingProperties || !hasProperties;
 
+  const handleMonthChange = useCallback((value: string) => {
+    if (!value) {
+      setSelectedMonth(undefined);
+      setSelectedYear(undefined);
+      return;
+    }
+    setSelectedMonth(Number(value));
+    setSelectedYear((current) => current ?? CURRENT_YEAR);
+  }, []);
+
+  const handleYearChange = useCallback((value: string) => {
+    if (!value) {
+      setSelectedYear(undefined);
+      setSelectedMonth(undefined);
+      return;
+    }
+    setSelectedYear(Number(value));
+    setSelectedMonth((current) => current ?? CURRENT_MONTH);
+  }, []);
+
   const handleReportPeriodResolved = useCallback((month: number, year: number) => {
     setSelectedMonth((current) => current ?? month);
     setSelectedYear((current) => current ?? year);
@@ -129,10 +150,7 @@ const Dashboard: React.FC = () => {
                   <label className="text-xs font-medium text-gray-700 mb-1">Month</label>
                   <select
                     value={selectedMonth ?? ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedMonth(value ? Number(value) : undefined);
-                    }}
+                    onChange={(e) => handleMonthChange(e.target.value)}
                     disabled={disableFilters}
                     className="block w-full sm:w-auto min-w-[150px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
                   >
@@ -148,10 +166,7 @@ const Dashboard: React.FC = () => {
                   <label className="text-xs font-medium text-gray-700 mb-1">Year</label>
                   <select
                     value={selectedYear ?? ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedYear(value ? Number(value) : undefined);
-                    }}
+                    onChange={(e) => handleYearChange(e.target.value)}
                     disabled={disableFilters}
                     className="block w-full sm:w-auto min-w-[120px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
                   >
