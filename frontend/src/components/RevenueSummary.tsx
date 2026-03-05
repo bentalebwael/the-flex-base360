@@ -219,11 +219,6 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({
                     <p className="text-xl font-semibold text-gray-900 mt-1">
                         {data.currency} {formatAmount(data.total_revenue_all_time || "0")}
                     </p>
-                    {data.property_timezone && (
-                        <p className="text-xs text-gray-500 mt-1">
-                            Reporting timezone: {data.property_timezone}
-                        </p>
-                    )}
                 </div>
 
                 {/* Precision Warning Area */}
