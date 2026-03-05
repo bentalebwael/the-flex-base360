@@ -16,7 +16,7 @@ interface RevenueData {
 }
 
 interface RevenueSummaryProps {
-    propertyId?: string;
+    propertyId: string;
     month?: number;
     year?: number;
     onReportPeriodResolved?: (month: number, year: number) => void;
@@ -39,7 +39,7 @@ const MONTH_LABELS = [
 ];
 
 export const RevenueSummary: React.FC<RevenueSummaryProps> = ({
-    propertyId = 'prop-001',
+    propertyId,
     month,
     year,
     onReportPeriodResolved,

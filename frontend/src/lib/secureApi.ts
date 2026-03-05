@@ -179,12 +179,8 @@ export class SecureAPIClient {
       if (token) {
         let extractedTenantId = null;
 
-        // Handle static local token.
-        if (token === "mock-token-123") {
-          extractedTenantId = "tenant-a";
-        }
         // Check if it's a valid JWT
-        else if (token.includes('.') && token.split('.').length === 3) {
+        if (token.includes('.') && token.split('.').length === 3) {
           const payload = JSON.parse(atob(token.split('.')[1]));
           extractedTenantId = payload.user_metadata?.tenant_id || payload.tenant_id;
         }
