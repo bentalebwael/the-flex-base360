@@ -67,7 +67,7 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             return {
                     "property_id": row.property_id,
                     "total": str(row.total_revenue), # بنحول الـ Decimal لنص عشان الـ JSON
-                    "count": row.reservation_count,
+                    "count": str(row.reservation_count),
                     "currency": "USD"
                 }
         else:
