@@ -15,16 +15,18 @@ class DatabasePool:
         """Initialize database connection pool"""
         try:
             # Create async engine with connection pooling
-            database_url = f"postgresql+asyncpg://{settings.supabase_db_user}:{settings.supabase_db_password}@{settings.supabase_db_host}:{settings.supabase_db_port}/{settings.supabase_db_name}"
+            # ملاحظة: تأكد أن supabase_db_password ليس None وإلا سيحدث خطأ في الـ URL
+            db_pass = settings.supabase_db_password or ""
+            database_url = f"postgresql+asyncpg://{settings.supabase_db_user}:{db_pass}@{settings.supabase_db_host}:{settings.supabase_db_port}/{settings.supabase_db_name}"
             
             self.engine = create_async_engine(
                 database_url,
-                poolclass=QueuePool,
-                pool_size=20,  # Number of connections to maintain
-                max_overflow=30,  # Additional connections when needed
-                pool_pre_ping=True,  # Validate connections
-                pool_recycle=3600,  # Recycle connections every hour
-                echo=False  # Set to True for SQL debugging
+                # تم حذف poolclass=QueuePool لإصلاح خطأ الـ Async
+                pool_size=settings.database_pool_size, # استخدام الإعدادات من config
+                max_overflow=settings.database_max_overflow,
+                pool_pre_ping=True,
+                pool_recycle=settings.database_pool_recycle,
+                echo=False
             )
             
             self.session_factory = async_sessionmaker(
@@ -32,6 +34,10 @@ class DatabasePool:
                 class_=AsyncSession,
                 expire_on_commit=False
             )
+            
+            # تجربة الاتصال للتأكد أن كل شيء يعمل
+            async with self.engine.connect() as conn:
+                await conn.run_sync(lambda sync_conn: None)
             
             logger.info("✅ Database connection pool initialized")
             
@@ -45,7 +51,7 @@ class DatabasePool:
         if self.engine:
             await self.engine.dispose()
     
-    async def get_session(self) -> AsyncSession:
+    def get_session(self) -> AsyncSession:
         """Get database session from pool"""
         if not self.session_factory:
             raise Exception("Database pool not initialized")

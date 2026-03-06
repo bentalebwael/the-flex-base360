@@ -201,7 +201,7 @@ function AppContent() {
                         <Route path="/profile" element={<ProfilePage />} />
 
                         {/* Default redirect */}
-                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                        {/* <Route path="*" element={<Navigate to="/dashboard" replace />} /> */}
                       </Routes>
                     </main>
                   </div>
