@@ -60,28 +60,16 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                 
                 result = await session.execute(query, {
                     "property_id": property_id, 
-                    "tenant_id": tenant_id
+                    "tenant_id": tenant_id,
                 })
                 row = result.fetchone()
-                
-                if row:
-                    total_revenue = Decimal(str(row.total_revenue))
-                    return {
-                        "property_id": property_id,
-                        "tenant_id": tenant_id,
-                        "total": str(total_revenue),
-                        "currency": "USD", 
-                        "count": row.reservation_count
-                    }
-                else:
-                    # No reservations found for this property
-                    return {
-                        "property_id": property_id,
-                        "tenant_id": tenant_id,
-                        "total": "0.00",
-                        "currency": "USD",
-                        "count": 0
-                    }
+
+            return {
+                    "property_id": row.property_id,
+                    "total": str(row.total_revenue), # بنحول الـ Decimal لنص عشان الـ JSON
+                    "count": row.reservation_count,
+                    "currency": "USD"
+                }
         else:
             raise Exception("Database pool not available")
             
