@@ -19,7 +19,6 @@ async def get_dashboard_summary(
     
     # --- تعديل الحماية هنا ---
     if revenue_data is None:
-        print(revenue_data)
         # لو مفيش بيانات، رجع قيم افتراضية بدل ما الـ App يضرب
         return {
             "property_id": property_id,
