@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
+from sqlalchemy import text
 
 router = APIRouter()
 
@@ -11,15 +12,14 @@ async def get_dashboard_summary(
     current_user: dict = Depends(get_current_user)
 ) -> Dict[str, Any]:
     
-    # استخراج الـ tenant_id بأمان
+    # get tenant id for the current user
     tenant_id = getattr(current_user, "tenant_id", "default_tenant") or "default_tenant"
     
-    # جلب البيانات من السيرفس
+    # fetch data from service
     revenue_data = await get_revenue_summary(property_id, tenant_id)
     
-    # --- تعديل الحماية هنا ---
     if revenue_data is None:
-        # لو مفيش بيانات، رجع قيم افتراضية بدل ما الـ App يضرب
+        # get null fake data if try to get the other's data
         return {
             "property_id": property_id,
             "total_revenue": 0.0,
@@ -27,7 +27,6 @@ async def get_dashboard_summary(
             "reservations_count": 0
         }
     
-    # لو البيانات موجودة، حولها لـ float زي ما كنت عايز
     total_revenue_float = float(revenue_data.get('total', 0))
     
     return {
@@ -36,3 +35,30 @@ async def get_dashboard_summary(
         "currency": revenue_data.get('currency', 'USD'),
         "reservations_count": revenue_data.get('count', 0)
     }
+
+#to get current user's properties not hardcoded
+@router.get("/properties/list")
+async def list_properties(current_user: dict = Depends(get_current_user)):
+    #get tenant id for current user login
+    tenant_id = getattr(current_user, "tenant_id", "default_tenant")
+
+    from app.core.database_pool import DatabasePool
+    db_pool = DatabasePool()
+    await db_pool.initialize()
+    
+    if not db_pool.session_factory:
+        raise HTTPException(status_code=500, detail="Database pool not available")
+
+    # query to get current user's properties
+    async with db_pool.get_session() as session:
+        query = text("""
+            SELECT id, name 
+            FROM properties 
+            WHERE tenant_id = :tenant_id
+        """)
+        
+        result = await session.execute(query, {"tenant_id": tenant_id})
+        rows = result.fetchall()
+        
+        # get result as list
+        return [{"id": row.id, "name": row.name} for row in rows]
