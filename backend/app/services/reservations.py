@@ -31,7 +31,12 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
     
     return Decimal('0') # Placeholder for now until DB connection is finalized
 
-async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
+async def calculate_total_revenue(
+    property_id: str, 
+    tenant_id: str,
+    month: int = None,
+    year: int = None
+) -> Dict[str, Any]:
     """
     Aggregates revenue from database.
     """
@@ -48,20 +53,39 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                 # Use SQLAlchemy text for raw SQL
                 from sqlalchemy import text
                 
-                query = text("""
-                    SELECT 
-                        property_id,
-                        SUM(total_amount) as total_revenue,
-                        COUNT(*) as reservation_count
-                    FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
-                    GROUP BY property_id
-                """)
-                
-                result = await session.execute(query, {
-                    "property_id": property_id, 
-                    "tenant_id": tenant_id
-                })
+                if month and year:
+                    query = text("""
+                        SELECT 
+                            property_id,
+                            SUM(total_amount) as total_revenue,
+                            COUNT(*) as reservation_count
+                        FROM reservations 
+                        WHERE property_id = :property_id AND tenant_id = :tenant_id AND month = :month AND year = :year
+                        GROUP BY property_id
+                    """)
+                    
+                    result = await session.execute(query, {
+                        "property_id": property_id, 
+                        "tenant_id": tenant_id,
+                        "month": month,
+                        "year": year
+                    })
+                else: 
+                    query = text("""
+                        SELECT 
+                            property_id,
+                            SUM(total_amount) as total_revenue,
+                            COUNT(*) as reservation_count
+                        FROM reservations 
+                        WHERE property_id = :property_id AND tenant_id = :tenant_id
+                        GROUP BY property_id
+                    """)
+                    
+                    result = await session.execute(query, {
+                        "property_id": property_id, 
+                        "tenant_id": tenant_id
+                    })
+
                 row = result.fetchone()
                 
                 if row:
