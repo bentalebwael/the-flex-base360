@@ -44,18 +44,21 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
         await db_pool.initialize()
         
         if db_pool.session_factory:
-            async with db_pool.get_session() as session:
+            async with db_pool.session_factory() as session:
                 # Use SQLAlchemy text for raw SQL
                 from sqlalchemy import text
                 
                 query = text("""
                     SELECT 
-                        property_id,
-                        SUM(total_amount) as total_revenue,
+                        r.property_id,
+                        SUM(r.total_amount) as total_revenue,
                         COUNT(*) as reservation_count
-                    FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
-                    GROUP BY property_id
+                    FROM reservations r
+                    JOIN properties p ON r.property_id = p.id AND r.tenant_id = p.tenant_id
+                    WHERE r.property_id = :property_id AND r.tenant_id = :tenant_id
+                    AND EXTRACT(MONTH FROM r.check_in_date AT TIME ZONE 'UTC' AT TIME ZONE p.timezone) = 3
+                    AND EXTRACT(YEAR FROM r.check_in_date AT TIME ZONE 'UTC' AT TIME ZONE p.timezone) = 2024
+                    GROUP BY r.property_id
                 """)
                 
                 result = await session.execute(query, {
