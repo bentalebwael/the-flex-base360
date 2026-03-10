@@ -6,11 +6,25 @@ import os
 # Initialize Redis client (typically configured centrally).
 redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 
-async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any]:
+def financial_json_serializer(obj):
+    """
+    Serializes objects not supported by default json module.
+    Crucial: Converts Decimal to string to prevent floating-point precision loss.
+    """
+    if isinstance(obj, Decimal):
+        return str(obj) # "1250.50" (Safe) instead of 1250.5 (Unsafe float)
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+async def get_revenue_summary(
+    property_id: str, 
+    tenant_id: str,
+    month: int = None,
+    year: int = None
+) -> Dict[str, Any]:
     """
     Fetches revenue summary, utilizing caching to improve performance.
     """
-    cache_key = f"revenue:{property_id}"
+    cache_key = f"tenant:{tenant_id}:revenue:prop:{property_id}:m:{month}:y:{year}"
     
     # Try to get from cache
     cached = await redis_client.get(cache_key)
@@ -21,9 +35,11 @@ async def get_revenue_summary(property_id: str, tenant_id: str) -> Dict[str, Any
     from app.services.reservations import calculate_total_revenue
     
     # Calculate revenue
-    result = await calculate_total_revenue(property_id, tenant_id)
+    result = await calculate_total_revenue(property_id, tenant_id, month, year)
     
-    # Cache the result for 5 minutes
-    await redis_client.setex(cache_key, 300, json.dumps(result))
+    # Use our strict financial serializer
+    json_result = json.dumps(result, default=financial_json_serializer)
+    # Cache the result for 60 seconds
+    await redis_client.setex(cache_key, 60, json_result)
     
     return result

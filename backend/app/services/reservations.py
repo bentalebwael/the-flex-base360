@@ -31,7 +31,12 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
     
     return Decimal('0') # Placeholder for now until DB connection is finalized
 
-async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
+async def calculate_total_revenue(
+    property_id: str, 
+    tenant_id: str,
+    month: int = None,
+    year: int = None
+) -> Dict[str, Any]:
     """
     Aggregates revenue from database.
     """
@@ -48,20 +53,39 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                 # Use SQLAlchemy text for raw SQL
                 from sqlalchemy import text
                 
-                query = text("""
-                    SELECT 
-                        property_id,
-                        SUM(total_amount) as total_revenue,
-                        COUNT(*) as reservation_count
-                    FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
-                    GROUP BY property_id
-                """)
-                
-                result = await session.execute(query, {
-                    "property_id": property_id, 
-                    "tenant_id": tenant_id
-                })
+                if month and year:
+                    query = text("""
+                        SELECT 
+                            property_id,
+                            SUM(total_amount) as total_revenue,
+                            COUNT(*) as reservation_count
+                        FROM reservations 
+                        WHERE property_id = :property_id AND tenant_id = :tenant_id AND month = :month AND year = :year
+                        GROUP BY property_id
+                    """)
+                    
+                    result = await session.execute(query, {
+                        "property_id": property_id, 
+                        "tenant_id": tenant_id,
+                        "month": month,
+                        "year": year
+                    })
+                else: 
+                    query = text("""
+                        SELECT 
+                            property_id,
+                            SUM(total_amount) as total_revenue,
+                            COUNT(*) as reservation_count
+                        FROM reservations 
+                        WHERE property_id = :property_id AND tenant_id = :tenant_id
+                        GROUP BY property_id
+                    """)
+                    
+                    result = await session.execute(query, {
+                        "property_id": property_id, 
+                        "tenant_id": tenant_id
+                    })
+
                 row = result.fetchone()
                 
                 if row:
@@ -88,22 +112,10 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
     except Exception as e:
         print(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
         
-        # Create property-specific mock data for testing when DB is unavailable
-        # This ensures each property shows different figures
-        mock_data = {
-            'prop-001': {'total': '1000.00', 'count': 3},
-            'prop-002': {'total': '4975.50', 'count': 4}, 
-            'prop-003': {'total': '6100.50', 'count': 2},
-            'prop-004': {'total': '1776.50', 'count': 4},
-            'prop-005': {'total': '3256.00', 'count': 3}
-        }
-        
-        mock_property_data = mock_data.get(property_id, {'total': '0.00', 'count': 0})
-        
         return {
             "property_id": property_id,
             "tenant_id": tenant_id, 
-            "total": mock_property_data['total'],
+            "total": "0.0",
             "currency": "USD",
-            "count": mock_property_data['count']
+            "count": "0"
         }
