@@ -346,10 +346,15 @@ class SupabaseConnectionPool:
     
     def _create_client(self) -> Client:
         """Create a new Supabase client"""
-        return create_client(
-            settings.supabase_url,
-            settings.supabase_service_role_key
-        )
+        if settings.supabase_url and settings.supabase_service_role_key:
+            return create_client(
+                settings.supabase_url,
+                settings.supabase_service_role_key
+            )
+        else:
+            # Import the fallback client from database.py for Challenge Mode
+            from ..database import _base_client
+            return _base_client
     
     @asynccontextmanager
     async def get_client(self):
