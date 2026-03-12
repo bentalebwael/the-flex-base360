@@ -82,6 +82,17 @@ export default defineConfig({
     cssCodeSplit: true,          // Split CSS for better caching
   },
   server: {
+    host: "0.0.0.0",
+    port: 3000,
+    strictPort: true,
+    watch: {
+      usePolling: true,
+      interval: 1000,
+    },
+    hmr: {
+      host: "localhost",
+      port: 3000,
+    },
     historyApiFallback: true,
     proxy: {
       "/auth": {
