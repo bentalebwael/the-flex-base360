@@ -15,7 +15,8 @@ async def get_dashboard_summary(
     
     revenue_data = await get_revenue_summary(property_id, tenant_id)
     
-    total_revenue_float = float(revenue_data['total'])
+    # Additional problem about "slightly off" by a few cent here is because of casting from string to float
+    total_revenue_float = revenue_data['total'] # type is string
     
     return {
         "property_id": revenue_data['property_id'],

@@ -64,12 +64,13 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                 })
                 row = result.fetchone()
                 
+                print(f"DEBUG: Database query result for {property_id} (tenant: {tenant_id}): {row}")
                 if row:
-                    total_revenue = Decimal(str(row.total_revenue))
+                    total_revenue = str(row.total_revenue)
                     return {
                         "property_id": property_id,
                         "tenant_id": tenant_id,
-                        "total": str(total_revenue),
+                        "total": total_revenue,
                         "currency": "USD", 
                         "count": row.reservation_count
                     }
@@ -90,6 +91,8 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
         
         # Create property-specific mock data for testing when DB is unavailable
         # This ensures each property shows different figures
+
+        # Client A problem: When the connection to database is not available, system returns the mock data so it's not correct
         mock_data = {
             'prop-001': {'total': '1000.00', 'count': 3},
             'prop-002': {'total': '4975.50', 'count': 4}, 
