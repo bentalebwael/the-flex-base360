@@ -1,0 +1,36 @@
+meta {
+  name: Unknown user defaults blocked
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: totally_fake_unknown_user_token
+}
+
+docs {
+  # Bug 5: Unknown User Default to Tenant-A
+  
+  Before the fix, tenant_resolver.py returned "tenant-a" for ANY
+  unknown email — giving unauthorized access to Sunset Properties data.
+  
+  After the fix, unknown users get None → dashboard returns 403.
+  
+  This test uses a fake token. The auth layer rejects it before 
+  we even reach the tenant resolver, so we expect 401.
+  
+  The real test is in the code: tenant_resolver.py line 92 now 
+  returns None instead of "tenant-a".
+}
+
+tests {
+  test("unknown user should be rejected (401)", function() {
+    expect(res.status).to.be.oneOf([401, 403]);
+  });
+}

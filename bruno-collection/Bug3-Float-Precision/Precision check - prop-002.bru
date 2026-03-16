@@ -1,0 +1,32 @@
+meta {
+  name: Precision check - prop-002
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-002
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenA}}
+}
+
+docs {
+  # Bug 3: Float Precision — prop-002
+  
+  prop-002 amounts: 1250 + 1475.50 + 1199.25 + 1050.75 = 4975.50
+  Verifies proper rounding on mixed decimal values.
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("total_revenue must be exactly 4975.5", function() {
+    expect(res.body.total_revenue).to.equal(4975.5);
+  });
+}

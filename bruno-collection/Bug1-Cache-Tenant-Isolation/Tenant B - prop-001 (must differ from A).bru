@@ -1,0 +1,39 @@
+meta {
+  name: Tenant B - prop-001 (must differ from A)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenB}}
+}
+
+docs {
+  # Bug 1: Cache Tenant Isolation — Verify Tenant B
+  
+  Tenant B has NO reservations for prop-001 (their prop-001 is 
+  "Mountain Lodge Beta" with 0 bookings).
+  
+  Before the fix, this returned Tenant A's cached data (2250.0).
+  After the fix, it correctly returns 0.0.
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Tenant B prop-001 should be 0 (NOT Tenant A's 2250)", function() {
+    expect(res.body.total_revenue).to.equal(0.0);
+  });
+
+  test("Tenant B prop-001 should have 0 reservations", function() {
+    expect(res.body.reservations_count).to.equal(0);
+  });
+}

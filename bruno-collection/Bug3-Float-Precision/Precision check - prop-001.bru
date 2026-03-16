@@ -1,0 +1,41 @@
+meta {
+  name: Precision check - prop-001
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenA}}
+}
+
+docs {
+  # Bug 3: Float Precision — Cents Off
+  
+  prop-001 has amounts: 1250 + 333.333 + 333.333 + 333.334
+  Correct total = 2250.000
+  
+  Before the fix, `float()` conversion could produce 2249.9999...
+  After the fix, Decimal rounding ensures exactly 2250.0
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("total_revenue must be exactly 2250.0 (no float drift)", function() {
+    expect(res.body.total_revenue).to.equal(2250.0);
+  });
+
+  test("verify no precision loss in response", function() {
+    const str = JSON.stringify(res.body.total_revenue);
+    expect(str).to.not.contain("9999");
+    expect(str).to.not.contain("0001");
+  });
+}

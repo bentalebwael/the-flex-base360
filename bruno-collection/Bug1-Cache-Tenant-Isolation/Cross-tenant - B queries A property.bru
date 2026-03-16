@@ -1,0 +1,36 @@
+meta {
+  name: Cross-tenant - B queries A's property
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-002
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenB}}
+}
+
+docs {
+  # Bug 1: Cross-Tenant Isolation — Extra Check
+  
+  prop-002 belongs ONLY to Tenant A. When Tenant B queries it,
+  they should get 0 revenue (tenant-scoped query returns nothing).
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Tenant B should NOT see Tenant A's prop-002 data", function() {
+    expect(res.body.total_revenue).to.equal(0.0);
+  });
+
+  test("should have 0 reservations", function() {
+    expect(res.body.reservations_count).to.equal(0);
+  });
+}

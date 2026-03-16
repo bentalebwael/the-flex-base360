@@ -1,0 +1,45 @@
+meta {
+  name: Tenant A - prop-001
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenA}}
+}
+
+docs {
+  # Bug 1: Cache Tenant Isolation
+  
+  Both tenants share prop-001. Before the fix, the cache key was
+  `revenue:{property_id}` — missing tenant_id. Whoever queried first
+  cached their data, and the other tenant got WRONG numbers.
+  
+  ## Fix
+  Cache key changed to `revenue:{property_id}:tenant:{tenant_id}`
+  
+  ## How to test
+  1. Run this request first → expect 2250.0 (4 bookings)
+  2. Run "Tenant B - prop-001" next → expect 0.0 (0 bookings) 
+  3. If both return 2250.0, the bug is NOT fixed (data leaking)
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Tenant A prop-001 revenue should be 2250", function() {
+    expect(res.body.total_revenue).to.equal(2250.0);
+  });
+
+  test("Tenant A prop-001 should have 4 reservations", function() {
+    expect(res.body.reservations_count).to.equal(4);
+  });
+}

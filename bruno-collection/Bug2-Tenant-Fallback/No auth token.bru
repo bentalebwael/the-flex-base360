@@ -1,0 +1,26 @@
+meta {
+  name: No auth token
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: none
+}
+
+docs {
+  # Bug 2: Tenant Fallback — No Token
+  
+  Before the fix, missing tenant_id silently defaulted to 
+  "default_tenant" which could return data.
+  
+  After the fix, returns 401 (not authenticated).
+}
+
+tests {
+  test("should return 401 without auth", function() {
+    expect(res.status).to.equal(401);
+  });
+}

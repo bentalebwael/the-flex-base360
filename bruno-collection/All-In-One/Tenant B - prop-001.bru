@@ -1,0 +1,22 @@
+meta {
+  name: Full Tenant B - prop-001
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenB}}
+}
+
+tests {
+  test("prop-001: $0 for Tenant B (isolation check)", function() {
+    expect(res.body.total_revenue).to.equal(0.0);
+    expect(res.body.reservations_count).to.equal(0);
+  });
+}
