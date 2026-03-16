@@ -1,0 +1,49 @@
+meta {
+  name: Timezone edge case - prop-001
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenA}}
+}
+
+docs {
+  # Bug 4: Timezone-Naive Dates
+  
+  Reservation res-tz-1 checks in at 2024-02-29 23:30:00+00 (UTC).
+  Property "Beach House Alpha" is in Europe/Paris timezone.
+  
+  In Paris: that's 2024-03-01 00:30:00 → belongs to MARCH.
+  In UTC: that's still Feb 29 → belongs to FEBRUARY.
+  
+  Before the fix, naive datetime() had no timezone info, causing 
+  wrong month assignment when comparing with timezone-aware DB dates.
+  
+  After the fix, datetime uses tzinfo=timezone.utc for proper 
+  comparison with TIMESTAMP WITH TIME ZONE columns.
+  
+  ## Verify
+  Total should include res-tz-1 (1250.00) → 4 reservations, 2250.0 total.
+  If only 3 reservations / ~1000.0, the timezone fix is broken.
+}
+
+tests {
+  test("should return 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("should include timezone edge case reservation (4 total)", function() {
+    expect(res.body.reservations_count).to.equal(4);
+  });
+
+  test("total should be 2250 (includes res-tz-1 at 1250)", function() {
+    expect(res.body.total_revenue).to.equal(2250.0);
+  });
+}

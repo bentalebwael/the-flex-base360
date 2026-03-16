@@ -1,0 +1,28 @@
+meta {
+  name: Invalid token
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: totally_invalid_token_here
+}
+
+docs {
+  # Bug 2: Tenant Fallback — Invalid Token
+  
+  An invalid token should be rejected with 401, NOT fall back 
+  to a default tenant.
+}
+
+tests {
+  test("should return 401 with invalid token", function() {
+    expect(res.status).to.equal(401);
+  });
+}

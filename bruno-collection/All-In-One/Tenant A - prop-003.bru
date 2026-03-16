@@ -1,0 +1,22 @@
+meta {
+  name: Full Tenant A - prop-003
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/dashboard/summary?property_id=prop-003
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenA}}
+}
+
+tests {
+  test("prop-003: $6100.5, 2 bookings", function() {
+    expect(res.body.total_revenue).to.equal(6100.5);
+    expect(res.body.reservations_count).to.equal(2);
+  });
+}
