@@ -1,6 +1,8 @@
 from datetime import datetime
+from datetime import date
 from decimal import Decimal
 from typing import Dict, Any, List
+from sqlalchemy import text
 
 async def calculate_monthly_revenue(
     property_id: str,
