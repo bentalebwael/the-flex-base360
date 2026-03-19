@@ -1,19 +1,40 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
+import pytz  # Bug #3 FIX: needed for timezone-aware date boundaries
 
-async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
+# Bug #3 FIX: Added property_timezone parameter so monthly boundaries are calculated
+# in the property's local time, not UTC. Without this, a reservation at 23:30 UTC
+# in a UTC+1 timezone (midnight local) would be counted in the wrong month.
+async def calculate_monthly_revenue(
+    property_id: str,
+    month: int,
+    year: int,
+    property_timezone: str = 'UTC',  # Bug #3 FIXED: accept the property's timezone
+    db_session=None
+) -> Decimal:
     """
     Calculates revenue for a specific month.
+    Revenue is calculated based on the property's local timezone, not UTC.
     """
 
-    start_date = datetime(year, month, 1)
+    # Bug #3 FIX: Build timezone-aware datetimes anchored to the property's local timezone.
+    # This ensures that a reservation checked in at 23:30 UTC in a UTC+1 property
+    # is correctly counted in the next month (local midnight).
+    tz = pytz.timezone(property_timezone)
+    start_date = tz.localize(datetime(year, month, 1))
     if month < 12:
-        end_date = datetime(year, month + 1, 1)
+        end_date = tz.localize(datetime(year, month + 1, 1))
     else:
-        end_date = datetime(year + 1, 1, 1)
-        
-    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
+        end_date = tz.localize(datetime(year + 1, 1, 1))
+
+    # Bug #3 OLD (timezone-naive, causes wrong monthly totals):
+    # start_date = datetime(year, month, 1)
+    # if month < 12:
+    #     end_date = datetime(year, month + 1, 1)
+    # else:
+    #     end_date = datetime(year + 1, 1, 1)
+
 
     # SQL Simulation (This would be executed against the actual DB)
     query = """

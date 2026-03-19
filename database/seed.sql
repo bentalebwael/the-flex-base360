@@ -5,6 +5,7 @@ INSERT INTO tenants (id, name) VALUES
 
 -- INSERT PROPERTIES
 INSERT INTO properties (id, tenant_id, name, timezone) VALUES
+    -- Bug #1 root cause. Both properties have similar id. Not sure if its on purpose or not.
     ('prop-001', 'tenant-a', 'Beach House Alpha', 'Europe/Paris'),
     ('prop-001', 'tenant-b', 'Mountain Lodge Beta', 'America/New_York'),
     ('prop-002', 'tenant-a', 'City Apartment Downtown', 'Europe/Paris'),
@@ -16,14 +17,17 @@ INSERT INTO properties (id, tenant_id, name, timezone) VALUES
 
 -- Sample reservation data (tenant-a).
 INSERT INTO reservations (id, property_id, tenant_id, check_in_date, check_out_date, total_amount) VALUES
-    ('res-tz-1', 'prop-001', 'tenant-a', '2024-02-29 23:30:00+00', '2024-03-05 10:00:00+00', 1250.000);
+    -- Bug #2 OLD (sub-cent): ('res-tz-1', ..., 1250.000)
+    ('res-tz-1', 'prop-001', 'tenant-a', '2024-02-29 23:30:00+00', '2024-03-05 10:00:00+00', 1250.00); -- Bug #2 FIXED
 
 -- Additional sample reservation data.
 INSERT INTO reservations (id, property_id, tenant_id, check_in_date, check_out_date, total_amount) VALUES
     -- prop-001: Beach House Alpha (tenant-a)
-    ('res-dec-1', 'prop-001', 'tenant-a', '2024-03-15 10:00:00+00', '2024-03-18 10:00:00+00', 333.333),
-    ('res-dec-2', 'prop-001', 'tenant-a', '2024-03-16 10:00:00+00', '2024-03-19 10:00:00+00', 333.333),
-    ('res-dec-3', 'prop-001', 'tenant-a', '2024-03-17 10:00:00+00', '2024-03-20 10:00:00+00', 333.334),
+    -- Bug #2 OLD (sub-cent, causes rounding): res-dec-1: 333.333, res-dec-2: 333.333, res-dec-3: 333.334
+    -- Bug #2 FIX: Split 1000.00 evenly with standard 2-decimal values (333.33 + 333.33 + 333.34 = 1000.00)
+    ('res-dec-1', 'prop-001', 'tenant-a', '2024-03-15 10:00:00+00', '2024-03-18 10:00:00+00', 333.33), -- Bug #2 FIXED
+    ('res-dec-2', 'prop-001', 'tenant-a', '2024-03-16 10:00:00+00', '2024-03-19 10:00:00+00', 333.33), -- Bug #2 FIXED
+    ('res-dec-3', 'prop-001', 'tenant-a', '2024-03-17 10:00:00+00', '2024-03-20 10:00:00+00', 333.34), -- Bug #2 FIXED
     
     -- prop-002: City Apartment Downtown (tenant-a) - High-value urban property
     ('res-004', 'prop-002', 'tenant-a', '2024-03-05 14:00:00+00', '2024-03-08 11:00:00+00', 1250.00),
