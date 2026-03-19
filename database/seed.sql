@@ -5,6 +5,7 @@ INSERT INTO tenants (id, name) VALUES
 
 -- INSERT PROPERTIES
 INSERT INTO properties (id, tenant_id, name, timezone) VALUES
+    -- Bug #1 root cause. Both properties have similar id. Not sure if its on purpose or not.
     ('prop-001', 'tenant-a', 'Beach House Alpha', 'Europe/Paris'),
     ('prop-001', 'tenant-b', 'Mountain Lodge Beta', 'America/New_York'),
     ('prop-002', 'tenant-a', 'City Apartment Downtown', 'Europe/Paris'),
