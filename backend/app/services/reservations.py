@@ -2,16 +2,22 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
 
-async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
+async def calculate_monthly_revenue(property_id: str, month: int, year: int, timezone: str = 'UTC', db_session=None) -> Decimal:
     """
-    Calculates revenue for a specific month.
+    Calculates revenue for a specific month using the property's local timezone.
     """
+    from zoneinfo import ZoneInfo
 
-    start_date = datetime(year, month, 1)
+    # FIX: Was using naive UTC datetimes for month boundaries, ignoring the property's timezone.
+    # E.g. res-tz-1 with check_in '2024-02-29 23:30:00 UTC' is February in UTC,
+    # but March in Europe/Paris (00:30 on the 1st). Without this conversion, the $1250
+    # reservation was classified in the wrong month.
+    tz = ZoneInfo(timezone)
+    start_date = datetime(year, month, 1, tzinfo=tz)
     if month < 12:
-        end_date = datetime(year, month + 1, 1)
+        end_date = datetime(year, month + 1, 1, tzinfo=tz)
     else:
-        end_date = datetime(year + 1, 1, 1)
+        end_date = datetime(year + 1, 1, 1, tzinfo=tz)
         
     print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
 
