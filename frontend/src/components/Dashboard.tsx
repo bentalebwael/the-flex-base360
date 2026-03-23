@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { RevenueSummary } from "./RevenueSummary";
 
+// NOTE: Properties are hardcoded and not filtered by tenant. This means all clients
+// see all properties regardless of ownership. Left unchanged as this behavior is not
+// mentioned in the test requirements and may be intentional.
 const PROPERTIES = [
   { id: 'prop-001', name: 'Beach House Alpha' },
   { id: 'prop-002', name: 'City Apartment Downtown' },
