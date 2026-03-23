@@ -3,7 +3,8 @@ import { SecureAPI } from '../lib/secureApi';
 
 interface RevenueData {
     property_id: string;
-    total_revenue: number;
+    // FIX: Receive as string to preserve backend Decimal precision and avoid JS float arithmetic errors
+    total_revenue: string;
     currency: string;
     reservations_count: number;
 }
@@ -61,7 +62,15 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
     if (error) return <div className="p-4 text-red-500 bg-red-50 rounded-lg">{error}</div>;
     if (!data) return null;
 
-    const displayTotal = Math.round(data.total_revenue * 100) / 100;
+    // FIX: Parse string to number only for display. Previous Math.round(x*100)/100
+    // compounded IEEE 754 errors (e.g. 1234.567 * 100 = 123456.69999... in JS).
+    const displayTotal = parseFloat(data.total_revenue);
+
+    // FIX: Detect if the 3rd decimal place carries meaningful precision.
+    // Display shows 2 decimals; if the backend value has a non-zero 3rd decimal,
+    // show a warning with the exact value so the finance team can see the full precision.
+    const decimalPart = data.total_revenue.split('.')[1] || '000';
+    const hasSubCentPrecision = decimalPart.length >= 3 && decimalPart[2] !== '0';
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
@@ -102,14 +111,15 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
                     </div>
                 </div>
 
-                {/* Precision Warning Area */}
+                {/* FIX: When the backend value has a non-zero 3rd decimal (sub-cent precision),
+                    alert the user and show the exact value from the database. */}
                 <div className="mt-4 h-6">
-                    {Math.abs(data.total_revenue - displayTotal) > 0.000001 && showRaw && (
+                    {hasSubCentPrecision && (
                         <div className="flex items-center text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
                             <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
-                            Precision Mismatch Detected
+                            Exact value: {data.currency} {data.total_revenue}
                         </div>
                     )}
                 </div>
