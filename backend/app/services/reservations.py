@@ -1,19 +1,21 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
+from datetime import datetime, timezone
 
+# Use UTC as standard timezone (timestamps send from browser could be UNIX timestamps in milliseconds timezone issues (easy to get them Date.now()).
 async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
     Calculates revenue for a specific month.
     """
 
-    start_date = datetime(year, month, 1)
+    start_date_utc = datetime(year, month, 1, tzinfo=timezone.utc)
     if month < 12:
-        end_date = datetime(year, month + 1, 1)
+        end_date_utc = datetime(year, month + 1, 1, tzinfo=timezone.utc)
     else:
-        end_date = datetime(year + 1, 1, 1)
+        end_date_utc = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
         
-    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
+    print(f"DEBUG: Querying revenue for {property_id} from {start_date_utc} to {end_date_utc}")
 
     # SQL Simulation (This would be executed against the actual DB)
     query = """
@@ -31,7 +33,9 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
     
     return Decimal('0') # Placeholder for now until DB connection is finalized
 
-async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
+# TODO: Add RowLevel Security (RTS) for better tenant isolation (even if the dev forgets or writes a bad query, the isolation is enforced database level).
+
+async def calculate_total_revenue(property_id: str, tenant_id: str, timestamp: str) -> Dict[str, Any]:
     """
     Aggregates revenue from database.
     """
@@ -42,6 +46,10 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
         # Initialize pool if needed
         db_pool = DatabasePool()
         await db_pool.initialize()
+
+        ts_int = int(timestamp)          
+        ts_seconds = ts_int / 1000      
+        before_dt = datetime.fromtimestamp(ts_seconds, tz=timezone.utc)
         
         if db_pool.session_factory:
             async with db_pool.get_session() as session:
@@ -54,13 +62,14 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
                         SUM(total_amount) as total_revenue,
                         COUNT(*) as reservation_count
                     FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
+                    WHERE property_id = :property_id AND tenant_id = :tenant_id AND created_at < :before_ts
                     GROUP BY property_id
                 """)
                 
                 result = await session.execute(query, {
                     "property_id": property_id, 
-                    "tenant_id": tenant_id
+                    "tenant_id": tenant_id,
+                    "before_ts": before_dt
                 })
                 row = result.fetchone()
                 
