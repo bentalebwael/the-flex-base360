@@ -89,7 +89,10 @@ class TenantResolver:
             return "tenant-a"
             
         # Default fallback
-        return "tenant-a"
+        # Returning tenant-a exposes tenant-a's data to any random email. 
+        # For assignment, raise ValueError or fallback securely.
+        raise ValueError(f"Unknown user email: {user_email}")
+
 
     @staticmethod
     async def update_user_tenant_metadata(user_id: str, tenant_id: str) -> None:
