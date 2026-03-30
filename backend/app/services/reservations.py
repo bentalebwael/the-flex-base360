@@ -1,21 +1,48 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, Any, List
+import zoneinfo
 
-async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
+async def calculate_monthly_revenue(
+    property_id: str,
+    month: int,
+    year: int,
+    property_timezone: str = 'UTC',
+    db_session=None
+) -> Decimal:
     """
-    Calculates revenue for a specific month.
+    Calculates revenue for a specific month, respecting the property's local timezone.
     """
+    
+    # Previously used naive UTC datetimes for the date range:
+    #     start_date = datetime(year, month, 1)   # no timezone info
+    #
+    # This caused reservations near midnight at month boundaries to be bucketed
+    # into the wrong month for properties in non-UTC timezones.
+    #
+    # Example: A reservation with check_in = 2024-02-29 23:30 UTC is actually
+    # 2024-03-01 00:30 in Europe/Paris (UTC+1). A UTC-based March query starts at
+    # 2024-03-01 00:00 UTC, so 23:30 UTC falls BEFORE it and is wrongly excluded
+    # from March — even though it is a March check-in from the client's perspective.
+    #
+    # Fix: Construct month boundaries in the property's local timezone, then
+    # convert to UTC for the database query.
 
-    start_date = datetime(year, month, 1)
+    tz = zoneinfo.ZoneInfo(property_timezone)
+ 
+    # Build month start/end in the property's local timezone
+    local_start = datetime(year, month, 1, 0, 0, 0, tzinfo=tz)
     if month < 12:
-        end_date = datetime(year, month + 1, 1)
+        local_end = datetime(year, month + 1, 1, 0, 0, 0, tzinfo=tz)
     else:
-        end_date = datetime(year + 1, 1, 1)
-        
-    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
-
-    # SQL Simulation (This would be executed against the actual DB)
+        local_end = datetime(year + 1, 1, 1, 0, 0, 0, tzinfo=tz)
+ 
+    # Convert to UTC for the DB query
+    start_date = local_start.astimezone(timezone.utc)
+    end_date = local_end.astimezone(timezone.utc)
+ 
+    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date} (property tz: {property_timezone})")
+ 
     query = """
         SELECT SUM(total_amount) as total
         FROM reservations
@@ -24,12 +51,8 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
         AND check_in_date >= $3
         AND check_in_date < $4
     """
-    
-    # In production this query executes against a database session.
-    # result = await db.fetch_val(query, property_id, tenant_id, start_date, end_date)
-    # return result or Decimal('0')
-    
-    return Decimal('0') # Placeholder for now until DB connection is finalized
+
+    return Decimal('0')  # Placeholder until DB connection is finalized
 
 async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
     """

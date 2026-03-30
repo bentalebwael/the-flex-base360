@@ -29,6 +29,7 @@ from .api.v1 import (
     persistent_auth,
     dashboard,
     login,
+    properties,
 )
 
 from .monitoring.middleware import PerformanceMonitoringMiddleware
@@ -180,6 +181,9 @@ app.include_router(persistent_auth.router, prefix="/api/v1/auth", tags=["persist
 # User Management
 app.include_router(users_lightning.router, prefix="/api/v1", tags=["users"])
 app.include_router(profile.router, prefix="/api/v1", tags=["profile"])
+
+# Properties
+app.include_router(properties.router, prefix="/api/v1", tags=["properties"])
 
 # Dashboard
 app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
