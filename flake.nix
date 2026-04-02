@@ -30,7 +30,6 @@
           buildInputs = with pkgs; [
             # Python backend dependencies
             pythonEnv
-            python311Packages.pip
             uv  # Fast Python package installer and resolver
 
             # Node.js frontend dependencies (npm is included with nodejs_20)
