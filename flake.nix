@@ -2,7 +2,7 @@
   description = "Base360 Development Environment - Full-stack Property Management System";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -14,22 +14,15 @@
           config.allowUnfree = true;
         };
 
-        # Python 3.11 with required packages
+        # Python 3.11 (minimal, no extra packages to avoid conflicts)
         python = pkgs.python311;
-
-        # Python development environment
-        pythonEnv = python.withPackages (ps: with ps; [
-          pip
-          setuptools
-          wheel
-        ]);
 
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             # Python backend dependencies
-            pythonEnv
+            python
             uv  # Fast Python package installer and resolver
 
             # Node.js frontend dependencies (npm is included with nodejs_20)
@@ -136,7 +129,7 @@
         # Additional shells for specific purposes
         devShells.backend = pkgs.mkShell {
           buildInputs = with pkgs; [
-            pythonEnv
+            python
             uv
             postgresql_15
             redis
