@@ -1,7 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RevenueSummary } from "./RevenueSummary";
+import { SecureAPI } from "../lib/secureApi";
 
-const PROPERTIES = [
+interface Property {
+  id: string;
+  name: string;
+}
+
+const FALLBACK_PROPERTIES: Property[] = [
   { id: 'prop-001', name: 'Beach House Alpha' },
   { id: 'prop-002', name: 'City Apartment Downtown' },
   { id: 'prop-003', name: 'Country Villa Estate' },
@@ -11,6 +17,20 @@ const PROPERTIES = [
 
 const Dashboard: React.FC = () => {
   const [selectedProperty, setSelectedProperty] = useState('prop-001');
+  const [properties, setProperties] = useState<Property[]>(FALLBACK_PROPERTIES);
+
+  useEffect(() => {
+    SecureAPI.getDashboardProperties()
+      .then((data: Property[]) => {
+        if (data && data.length > 0) {
+          setProperties(data);
+          setSelectedProperty(data[0].id);
+        }
+      })
+      .catch(() => {
+        // DB unavailable — fallback list stays
+      });
+  }, []);
 
   return (
     <div className="p-4 lg:p-6 min-h-full">
@@ -35,7 +55,7 @@ const Dashboard: React.FC = () => {
                   onChange={(e) => setSelectedProperty(e.target.value)}
                   className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
-                  {PROPERTIES.map((property) => (
+                  {properties.map((property) => (
                     <option key={property.id} value={property.id}>
                       {property.name}
                     </option>
