@@ -1,16 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { RevenueSummary } from "./RevenueSummary";
+import { useAuth } from "../contexts/AuthContext.new";
 
-const PROPERTIES = [
-  { id: 'prop-001', name: 'Beach House Alpha' },
-  { id: 'prop-002', name: 'City Apartment Downtown' },
-  { id: 'prop-003', name: 'Country Villa Estate' },
-  { id: 'prop-004', name: 'Lakeside Cottage' },
-  { id: 'prop-005', name: 'Urban Loft Modern' }
+// All properties with their tenant associations
+const ALL_PROPERTIES = [
+  { id: 'prop-001', name: 'Beach House Alpha', tenant: 'tenant-a' },
+  { id: 'prop-002', name: 'City Apartment Downtown', tenant: 'tenant-a' },
+  { id: 'prop-003', name: 'Country Villa Estate', tenant: 'tenant-a' },
+  { id: 'prop-001', name: 'Mountain Lodge Beta', tenant: 'tenant-b' },
+  { id: 'prop-004', name: 'Lakeside Cottage', tenant: 'tenant-b' },
+  { id: 'prop-005', name: 'Urban Loft Modern', tenant: 'tenant-b' }
 ];
 
 const Dashboard: React.FC = () => {
-  const [selectedProperty, setSelectedProperty] = useState('prop-001');
+  const { user } = useAuth();
+  
+  // Filter properties by current user's tenant
+  const PROPERTIES = useMemo(() => {
+    if (!user?.tenant_id) return [];
+    return ALL_PROPERTIES.filter(p => p.tenant === user.tenant_id);
+  }, [user?.tenant_id]);
+  
+  const [selectedProperty, setSelectedProperty] = useState(() => {
+    return PROPERTIES.length > 0 ? PROPERTIES[0].id : 'prop-001';
+  });
 
   return (
     <div className="p-4 lg:p-6 min-h-full">
