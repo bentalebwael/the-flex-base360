@@ -6,6 +6,8 @@ interface RevenueData {
     total_revenue: number;
     currency: string;
     reservations_count: number;
+    period?: string;
+    timezone?: string;
 }
 
 interface RevenueSummaryProps {
@@ -18,6 +20,8 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
     const [data, setData] = useState<RevenueData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+    const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
     const activeTenant = debugTenant || 'candidate';
 
@@ -26,11 +30,13 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
             setLoading(true);
             try {
                 // Use SecureAPI to handle authentication automatically
-                // We pass the simulatedTenant option which SecureAPI will attach as a header
-                const response = await SecureAPI.getDashboardSummary(propertyId, {
+                const params = {
                     simulatedTenant: activeTenant,
-                    timestamp: Date.now()
-                });
+                    timestamp: Date.now(),
+                    ...(selectedMonth && selectedYear && { month: selectedMonth, year: selectedYear })
+                };
+                
+                const response = await SecureAPI.getDashboardSummary(propertyId, params);
                 setData(response);
             } catch (err) {
                 setError('Failed to load revenue data');
@@ -41,30 +47,92 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
         };
 
         fetchRevenue();
-    }, [propertyId, activeTenant]);
+    }, [propertyId, activeTenant, selectedMonth, selectedYear]);
+
+    const months = [
+        { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
+        { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
+        { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
+        { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' }
+    ];
+
+    const years = [2024, 2023, 2022, 2021];
+
+    const MonthYearSelector = () => (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-600 whitespace-nowrap">Filter by month:</span>
+                <select 
+                    className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+                    value={selectedMonth || ''} 
+                    onChange={(e) => setSelectedMonth(e.target.value ? Number(e.target.value) : null)}
+                >
+                    <option value="">All time</option>
+                    {months.map(m => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                </select>
+                {selectedMonth && (
+                    <select 
+                        className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+                        value={selectedYear || new Date().getFullYear()} 
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    >
+                        {years.map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </select>
+                )}
+                {(selectedMonth || selectedYear) && (
+                    <button 
+                        className="text-sm text-blue-600 hover:text-blue-700 underline"
+                        onClick={() => {
+                            setSelectedMonth(null);
+                            setSelectedYear(null);
+                        }}
+                    >
+                        Clear
+                    </button>
+                )}
+            </div>
+        </div>
+    );
 
     if (loading) {
         return (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <div className="animate-pulse space-y-4">
-                    <div className="h-4 bg-gray-100 rounded w-1/4"></div>
-                    <div className="h-8 bg-gray-100 rounded w-1/2"></div>
-                    <div className="flex gap-4 pt-4">
-                        <div className="h-12 bg-gray-100 rounded flex-1"></div>
-                        <div className="h-12 bg-gray-100 rounded flex-1"></div>
+            <div>
+                <MonthYearSelector />
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <div className="animate-pulse space-y-4">
+                        <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                        <div className="h-8 bg-gray-100 rounded w-1/2"></div>
+                        <div className="flex gap-4 pt-4">
+                            <div className="h-12 bg-gray-100 rounded flex-1"></div>
+                            <div className="h-12 bg-gray-100 rounded flex-1"></div>
+                        </div>
                     </div>
                 </div>
             </div>
         );
     }
 
-    if (error) return <div className="p-4 text-red-500 bg-red-50 rounded-lg">{error}</div>;
+    if (error) return (
+        <div>
+            <MonthYearSelector />
+            <div className="p-4 text-red-500 bg-red-50 rounded-lg">{error}</div>
+        </div>
+    );
     if (!data) return null;
 
     const displayTotal = Math.round(data.total_revenue * 100) / 100;
+    
+    const periodLabel = data.period ? ` (${data.period})` : '';
+    const timezoneLabel = data.timezone ? ` • ${data.timezone}` : '';
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
+        <div>
+            <MonthYearSelector />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-300">
             {showRaw && (
                 <div className="p-3 bg-gray-50 text-xs font-mono border-b border-gray-100 overflow-auto max-h-32">
                     <strong className="block mb-1 text-gray-500 uppercase tracking-wider text-[10px]">Raw API Response</strong>
@@ -75,7 +143,9 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
             <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Revenue</h2>
+                        <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                            Total Revenue{periodLabel}{timezoneLabel}
+                        </h2>
                         <div className="flex items-baseline gap-2 mt-1">
                             <span className="text-3xl font-bold text-gray-900 tracking-tight">
                                 {data.currency} {displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -114,6 +184,7 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
                     )}
                 </div>
             </div>
+        </div>
         </div>
     );
 };
