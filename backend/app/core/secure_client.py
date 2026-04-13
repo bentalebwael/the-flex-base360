@@ -48,8 +48,8 @@ class SecureClient:
                 # RLS handles it or no filtering needed
                 return query
         else:
-            logger.warning(f"Unknown table '{table_name}' - no tenant filter applied")
-            return query
+            logger.error(f"Unknown table '{table_name}' - blocking query to prevent tenant data leakage")
+            raise ValueError(f"Unknown table '{table_name}' - tenant filter cannot be safely applied")
     
     @staticmethod
     async def get_properties(filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
