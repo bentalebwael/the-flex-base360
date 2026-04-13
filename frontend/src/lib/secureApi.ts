@@ -11,7 +11,6 @@
 
 import { supabase } from './supabase';
 import { sessionManager } from '../utils/sessionManager';
-import { withRetry, handleApiError, classifyError } from '../utils/apiErrorHandler';
 
 // Get backend URL with fallback for misconfigured production environments
 const getBackendUrl = () => {
@@ -43,6 +42,9 @@ export class TenantIsolationError extends Error {
   }
 }
 
+/** Works with Supabase Session and LocalAuthClient AuthSession (only access_token is required here). */
+type SessionLike = { access_token: string; refresh_token?: string };
+
 export class SecureAPIClient {
   private static instance: SecureAPIClient;
   private backendUrl: string;
@@ -72,42 +74,43 @@ export class SecureAPIClient {
    * Intercepts and blocks direct Supabase queries in development
    */
   private interceptDirectQueries() {
-    if (import.meta.env.DEV) {
-      const ENFORCE = (import.meta.env as any).VITE_ENFORCE_SECURE_API === 'true';
-      const originalFrom = supabase.from;
-      // Temporary dev allowlist for legacy direct queries while migrating to SecureAPI
-      const DEV_ALLOWLIST = new Set([
-        'user_permissions',
-        'users_city',
-        'user_preferences',
-        'access_logs',
-        'landlord_details'
-      ]);
+    if (!import.meta.env.DEV) return;
 
-      supabase.from = (table: string) => {
-        const stack = new Error().stack || '';
-        const violation = `SECURITY VIOLATION: Direct Supabase query to table '${table}'`;
-
-        if (DEV_ALLOWLIST.has(table) || !ENFORCE) {
-          // Allow in development with a clear warning when not enforcing strict mode
-          console.warn(`⚠️ Legacy direct query allowed in DEV${ENFORCE ? ' (allowlist)' : ''}:`, table);
-          if (!DEV_ALLOWLIST.has(table) && !ENFORCE) {
-            // Record violation for later review, but don't block
-            this.securityViolations.push(violation + ' (allowed in DEV)');
-          }
-          return originalFrom.call(supabase, table);
-        }
-
-        // Strict enforcement in DEV when VITE_ENFORCE_SECURE_API=true
-        console.error('🚨🚨🚨 ' + violation);
-        console.error('Stack trace:', stack);
-        this.securityViolations.push(violation);
-        throw new TenantIsolationError(
-          `Direct database access is forbidden! Use SecureAPI.${table}() instead. ` +
-          `This query would expose data from ALL tenants.`
-        );
-      };
+    const sb = supabase as unknown as { from?: (table: string) => unknown };
+    if (typeof sb.from !== 'function') {
+      return;
     }
+
+    const ENFORCE = (import.meta.env as any).VITE_ENFORCE_SECURE_API === 'true';
+    const originalFrom = sb.from.bind(supabase);
+    const DEV_ALLOWLIST = new Set([
+      'user_permissions',
+      'users_city',
+      'user_preferences',
+      'access_logs',
+      'landlord_details'
+    ]);
+
+    sb.from = (table: string) => {
+      const stack = new Error().stack || '';
+      const violation = `SECURITY VIOLATION: Direct Supabase query to table '${table}'`;
+
+      if (DEV_ALLOWLIST.has(table) || !ENFORCE) {
+        console.warn(`⚠️ Legacy direct query allowed in DEV${ENFORCE ? ' (allowlist)' : ''}:`, table);
+        if (!DEV_ALLOWLIST.has(table) && !ENFORCE) {
+          this.securityViolations.push(violation + ' (allowed in DEV)');
+        }
+        return originalFrom(table);
+      }
+
+      console.error('🚨🚨🚨 ' + violation);
+      console.error('Stack trace:', stack);
+      this.securityViolations.push(violation);
+      throw new TenantIsolationError(
+        `Direct database access is forbidden! Use SecureAPI.${table}() instead. ` +
+          `This query would expose data from ALL tenants.`
+      );
+    };
   }
 
   /**
@@ -264,7 +267,7 @@ export class SecureAPIClient {
     let cleared = 0;
     const keysToDelete: string[] = [];
 
-    for (const [key, value] of this.requestCache.entries()) {
+    for (const [key] of this.requestCache.entries()) {
       if (key.includes(endpointPattern)) {
         keysToDelete.push(key);
         cleared++;
@@ -277,7 +280,7 @@ export class SecureAPIClient {
 
     // Also clear pending requests
     const pendingKeysToDelete: string[] = [];
-    for (const [key, promise] of this.pendingRequests.entries()) {
+    for (const [key] of this.pendingRequests.entries()) {
       if (key.includes(endpointPattern)) {
         pendingKeysToDelete.push(key);
       }
@@ -405,10 +408,6 @@ export class SecureAPIClient {
       return true; // Cache all other endpoints normally
     }
 
-    // Check if result looks valid for cleaning data
-    const items = data?.items || data?.data || [];
-    const total = data?.total || 0;
-
     // Always cache properly structured responses, even if empty
     // Empty results can be legitimate for users without tenant access or specific date ranges
     if (data && typeof data === 'object' && (data.hasOwnProperty('items') || data.hasOwnProperty('data') || data.hasOwnProperty('total'))) {
@@ -438,8 +437,6 @@ export class SecureAPIClient {
     const CLEANING_CACHE_TTL = 30000; // 30 seconds instead of 3 seconds
 
     // For cleaning endpoints, use extended cache time but validate content
-    const items = cachedData?.items || cachedData?.data || [];
-    const total = cachedData?.total || 0;
 
     // Primary validation: check cache age with more reasonable timeout
     if (cacheAge > CLEANING_CACHE_TTL) {
@@ -466,8 +463,7 @@ export class SecureAPIClient {
   /**
    * Wait for a valid Supabase session (with timeout) so API calls don't race login.
    */
-  private async waitForSession(timeoutMs: number = 7000): Promise<import('@supabase/supabase-js').Session | null> {
-    // Helper to read token from Supabase storage as last resort
+  private async waitForSession(timeoutMs: number = 7000): Promise<SessionLike | null> {
     const getTokenFromStorage = (): string | null => {
       try {
         if (typeof localStorage === 'undefined') return null;
@@ -481,7 +477,7 @@ export class SecureAPIClient {
             if (token) return token;
           }
         }
-      } catch { }
+      } catch { /* ignore */ }
       return null;
     };
 
@@ -490,47 +486,50 @@ export class SecureAPIClient {
       return current.data.session?.access_token || getTokenFromStorage();
     };
 
-    // Fast path
     const initial = await supabase.auth.getSession();
-    if (initial.data.session?.access_token) return initial.data.session;
+    if (initial.data.session?.access_token) {
+      return initial.data.session as SessionLike;
+    }
     const storageToken = getTokenFromStorage();
     if (storageToken) {
-      // Construct a minimal session object shape with access_token
-      return { access_token: storageToken } as any;
+      return { access_token: storageToken };
     }
 
-    // Listen + poll concurrently
-    let unsubscribe: (() => void) | null = null;
+    let unsubscribe: (() => void) | undefined;
     let resolved = false;
-    const sessionPromise = new Promise<import('@supabase/supabase-js').Session | null>((resolve) => {
+
+    const sessionPromise = new Promise<SessionLike | null>((resolve) => {
       const { data } = supabase.auth.onAuthStateChange((_event, session) => {
         if (!resolved && session?.access_token) {
           resolved = true;
-          if (unsubscribe) unsubscribe();
-          resolve(session);
+          unsubscribe?.();
+          resolve(session as SessionLike);
         }
       });
       unsubscribe = () => data.subscription.unsubscribe();
     });
 
-    const pollingPromise = new Promise<import('@supabase/supabase-js').Session | null>(async (resolve) => {
+    const pollingPromise = new Promise<SessionLike | null>(async (resolve) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         const token = await nowHasToken();
         if (token) {
           resolved = true;
-          if (unsubscribe) unsubscribe();
-          resolve({ access_token: token } as any);
+          unsubscribe?.();
+          resolve({ access_token: token });
           return;
         }
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise((r) => setTimeout(r, 200));
       }
       resolve(null);
     });
 
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
+    const timeoutPromise = new Promise<SessionLike | null>((resolve) =>
+      setTimeout(() => resolve(null), timeoutMs)
+    );
+
     const result = await Promise.race([sessionPromise, pollingPromise, timeoutPromise]);
-    if (unsubscribe) unsubscribe();
+    unsubscribe?.();
     return result;
   }
 
