@@ -164,3 +164,21 @@ Validation notes:
 - Command run: `.venv\\Scripts\\python.exe -m pytest tests/test_dashboard_tenant_isolation.py -q`
 - Result: `2 passed`.
 
+### 2026-04-13 - Step 8 Completed
+
+Change made:
+- Updated [.github/workflows/ci.yml](.github/workflows/ci.yml) to add a dedicated `backend-tests` job on pull requests to `main`.
+- New CI job sets up Python 3.12, installs backend dependencies, and runs `python -m pytest -q` in `backend/`.
+
+Why this change:
+- Tenant-isolation regression tests only reduce risk if they are enforced automatically at merge time.
+- CI enforcement shifts failure detection left and prevents silent regressions from reaching staging/production.
+
+Risk and impact assessment:
+- Risk: Low to Medium. CI duration increases slightly and may expose pre-existing test/environment issues.
+- Impact: High. Converts local-only testing into a merge gate for backend correctness and tenant-boundary safety.
+
+Validation notes:
+- Workflow syntax updated and scoped to pull request checks.
+- Local baseline remains green for tenant isolation tests (`2 passed`).
+
