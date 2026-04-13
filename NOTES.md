@@ -126,3 +126,27 @@ Validation notes:
 - Expected behavior: development environment still boots with defaults; staging/production requires explicit secure secret values.
 - Follow-up validation: run startup with `environment=production` and verify missing/default secrets stop boot; verify valid secrets allow normal startup.
 
+### 2026-04-13 - Step 6 Completed
+
+Change made:
+- Added focused backend tests in [backend/tests/test_dashboard_tenant_isolation.py](backend/tests/test_dashboard_tenant_isolation.py).
+- Test 1 verifies dashboard summary uses authenticated tenant context when invoking revenue summary.
+- Test 2 verifies missing tenant context returns HTTP 401 and does not call revenue summary logic.
+
+Why this change:
+- Tenant isolation controls are high-risk and require regression coverage after Step 1 and Step 2 behavior changes.
+- These tests validate both positive path (tenant-scoped execution) and fail-closed path (missing tenant rejection).
+- Fast, focused tests increase confidence while keeping maintenance overhead low.
+
+Risk and impact assessment:
+- Risk: Low. Test-only change.
+- Impact: Medium to High. Adds guardrails against regression in tenant boundary enforcement.
+
+Validation notes:
+- Expected behavior: tests pass with tenant-aware dashboard route and fail if fallback behavior is reintroduced.
+- Follow-up validation: run pytest for this module in CI and gate merges touching dashboard/auth cache paths.
+
+### Next Planned Step
+
+- Add a CI job stage for backend test execution so tenant-isolation tests are enforced on pull requests.
+
