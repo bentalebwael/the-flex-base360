@@ -70,6 +70,24 @@ async def calculate_total_revenue(
                         "year": year,
                         "month": month,
                     }
+                elif year is not None:
+                    query = text("""
+                        SELECT 
+                            r.property_id,
+                            SUM(r.total_amount) as total_revenue,
+                            COUNT(*) as reservation_count
+                        FROM reservations r
+                        INNER JOIN properties p
+                            ON r.property_id = p.id AND r.tenant_id = p.tenant_id
+                        WHERE r.property_id = :property_id AND r.tenant_id = :tenant_id
+                        AND EXTRACT(YEAR FROM timezone(p.timezone, r.check_in_date)) = :year
+                        GROUP BY r.property_id
+                    """)
+                    params = {
+                        "property_id": property_id,
+                        "tenant_id": tenant_id,
+                        "year": year,
+                    }
                 else:
                     query = text("""
                         SELECT 

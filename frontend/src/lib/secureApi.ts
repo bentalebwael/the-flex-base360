@@ -1456,15 +1456,19 @@ export class SecureAPIClient {
       timestamp?: number;
       year?: number;
       month?: number;
+      report?: 'monthly' | 'annual' | 'all';
     }
   ) {
     const queryParams = new URLSearchParams({ property_id: propertyId });
     if (options?.timestamp) {
       queryParams.append('_t', options.timestamp.toString());
     }
-    if (options?.year != null && options?.month != null) {
+    const mode = options?.report ?? 'monthly';
+    if (mode === 'monthly' && options?.year != null && options?.month != null) {
       queryParams.append('year', String(options.year));
       queryParams.append('month', String(options.month));
+    } else if (mode === 'annual' && options?.year != null) {
+      queryParams.append('year', String(options.year));
     }
 
     const requestOptions: RequestInit = {};

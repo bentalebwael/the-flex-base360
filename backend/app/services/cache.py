@@ -12,7 +12,12 @@ async def get_revenue_summary(
     year: int | None = None,
     month: int | None = None,
 ) -> Dict[str, Any]:
-    period = f"{year}:{month}" if year is not None and month is not None else "all"
+    if year is not None and month is not None:
+        period = f"m:{year}:{month}"
+    elif year is not None:
+        period = f"y:{year}"
+    else:
+        period = "all"
     cache_key = f"revenue:{tenant_id}:{property_id}:{period}"
     
     # Try to get from cache
