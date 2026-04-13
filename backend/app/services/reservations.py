@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Any, List
+from typing import Dict, Any, Optional
 
 async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
@@ -31,10 +31,12 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
     
     return Decimal('0') # Placeholder for now until DB connection is finalized
 
-async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
-    """
-    Aggregates revenue from database.
-    """
+async def calculate_total_revenue(
+    property_id: str,
+    tenant_id: str,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+) -> Dict[str, Any]:
     try:
         # Import database pool
         from app.core.database_pool import DatabasePool
@@ -47,21 +49,43 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
             async with db_pool.get_session() as session:
                 # Use SQLAlchemy text for raw SQL
                 from sqlalchemy import text
+
+                if year is not None and month is not None:
+                    query = text("""
+                        SELECT 
+                            r.property_id,
+                            SUM(r.total_amount) as total_revenue,
+                            COUNT(*) as reservation_count
+                        FROM reservations r
+                        INNER JOIN properties p
+                            ON r.property_id = p.id AND r.tenant_id = p.tenant_id
+                        WHERE r.property_id = :property_id AND r.tenant_id = :tenant_id
+                        AND EXTRACT(YEAR FROM timezone(p.timezone, r.check_in_date)) = :year
+                        AND EXTRACT(MONTH FROM timezone(p.timezone, r.check_in_date)) = :month
+                        GROUP BY r.property_id
+                    """)
+                    params = {
+                        "property_id": property_id,
+                        "tenant_id": tenant_id,
+                        "year": year,
+                        "month": month,
+                    }
+                else:
+                    query = text("""
+                        SELECT 
+                            property_id,
+                            SUM(total_amount) as total_revenue,
+                            COUNT(*) as reservation_count
+                        FROM reservations 
+                        WHERE property_id = :property_id AND tenant_id = :tenant_id
+                        GROUP BY property_id
+                    """)
+                    params = {
+                        "property_id": property_id,
+                        "tenant_id": tenant_id,
+                    }
                 
-                query = text("""
-                    SELECT 
-                        property_id,
-                        SUM(total_amount) as total_revenue,
-                        COUNT(*) as reservation_count
-                    FROM reservations 
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
-                    GROUP BY property_id
-                """)
-                
-                result = await session.execute(query, {
-                    "property_id": property_id, 
-                    "tenant_id": tenant_id
-                })
+                result = await session.execute(query, params)
                 row = result.fetchone()
                 
                 if row:
@@ -88,17 +112,18 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
     except Exception as e:
         print(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
         
-        # Create property-specific mock data for testing when DB is unavailable
-        # This ensures each property shows different figures
         mock_data = {
-            'prop-001': {'total': '1000.00', 'count': 3},
-            'prop-002': {'total': '4975.50', 'count': 4}, 
-            'prop-003': {'total': '6100.50', 'count': 2},
-            'prop-004': {'total': '1776.50', 'count': 4},
-            'prop-005': {'total': '3256.00', 'count': 3}
+            ('tenant-a', 'prop-001'): {'total': '2250.00', 'count': 4},
+            ('tenant-b', 'prop-001'): {'total': '0.00', 'count': 0},
+            ('tenant-a', 'prop-002'): {'total': '4975.50', 'count': 4},
+            ('tenant-a', 'prop-003'): {'total': '6100.50', 'count': 2},
+            ('tenant-b', 'prop-004'): {'total': '1776.50', 'count': 4},
+            ('tenant-b', 'prop-005'): {'total': '3256.00', 'count': 3},
         }
         
-        mock_property_data = mock_data.get(property_id, {'total': '0.00', 'count': 0})
+        mock_property_data = mock_data.get(
+            (tenant_id, property_id), {'total': '0.00', 'count': 0}
+        )
         
         return {
             "property_id": property_id,
