@@ -1,35 +1,56 @@
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import Dict, Any, List
 
-async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
+async def calculate_monthly_revenue(property_id: str, tenant_id: str, month: int, year: int) -> Decimal:
     """
-    Calculates revenue for a specific month.
+    Calculates revenue for a specific month, using the property's local timezone
+    so that check-in dates are bucketed correctly (e.g. a Paris property's midnight
+    is not misclassified as the previous UTC day).
     """
+    from sqlalchemy import text
+    from app.core.database_pool import DatabasePool
 
-    start_date = datetime(year, month, 1)
-    if month < 12:
-        end_date = datetime(year, month + 1, 1)
-    else:
-        end_date = datetime(year + 1, 1, 1)
-        
-    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
+    db_pool = DatabasePool()
+    await db_pool.initialize()
 
-    # SQL Simulation (This would be executed against the actual DB)
-    query = """
-        SELECT SUM(total_amount) as total
-        FROM reservations
-        WHERE property_id = $1
-        AND tenant_id = $2
-        AND check_in_date >= $3
-        AND check_in_date < $4
-    """
-    
-    # In production this query executes against a database session.
-    # result = await db.fetch_val(query, property_id, tenant_id, start_date, end_date)
-    # return result or Decimal('0')
-    
-    return Decimal('0') # Placeholder for now until DB connection is finalized
+    async with db_pool.get_session() as session:
+        # Look up the property's configured timezone
+        tz_query = text(
+            "SELECT timezone FROM properties WHERE id = :property_id AND tenant_id = :tenant_id"
+        )
+        tz_result = await session.execute(tz_query, {"property_id": property_id, "tenant_id": tenant_id})
+        tz_row = tz_result.fetchone()
+        property_tz = ZoneInfo(tz_row.timezone) if tz_row else ZoneInfo("UTC")
+
+        # Build month boundaries in the property's local time, then convert to UTC
+        # so the comparison against the DB's timestamptz column is correct.
+        start_local = datetime(year, month, 1, tzinfo=property_tz)
+        if month < 12:
+            end_local = datetime(year, month + 1, 1, tzinfo=property_tz)
+        else:
+            end_local = datetime(year + 1, 1, 1, tzinfo=property_tz)
+
+        start_utc = start_local.astimezone(timezone.utc)
+        end_utc   = end_local.astimezone(timezone.utc)
+
+        query = text("""
+            SELECT SUM(total_amount) AS total
+            FROM reservations
+            WHERE property_id = :property_id
+              AND tenant_id   = :tenant_id
+              AND check_in_date >= :start_date
+              AND check_in_date  < :end_date
+        """)
+        result = await session.execute(query, {
+            "property_id": property_id,
+            "tenant_id":   tenant_id,
+            "start_date":  start_utc,
+            "end_date":    end_utc,
+        })
+        row = result.fetchone()
+        return Decimal(str(row.total)) if row and row.total else Decimal("0")
 
 async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str, Any]:
     """
