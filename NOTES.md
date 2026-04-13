@@ -90,3 +90,27 @@ Validation notes:
 
 - Harden [frontend/src/lib/secureApi.ts](frontend/src/lib/secureApi.ts) by removing mock token tenant fallback and strengthening JWT parsing guards.
 
+### 2026-04-13 - Step 4 Completed
+
+Change made:
+- Updated [frontend/src/lib/secureApi.ts](frontend/src/lib/secureApi.ts) to remove mock token tenant fallback.
+- Added `decodeJwtPayload` helper for safe JWT parsing with malformed token guardrails.
+- Refactored tenant ID and session key extraction to use guarded payload decode.
+
+Why this change:
+- Static mock-token logic is a security anti-pattern and can create ambiguous tenant context behavior.
+- Direct `atob` + `JSON.parse` without guardrails is brittle and can fail noisily with malformed tokens.
+- Centralized safe decoding reduces auth edge-case risk and keeps tenant/session derivation deterministic.
+
+Risk and impact assessment:
+- Risk: Low. Affects only token parsing paths and degrades safely to `null` on invalid tokens.
+- Impact: Medium to High. Improves frontend auth resilience and reduces chance of tenant context misuse.
+
+Validation notes:
+- Expected behavior: valid JWT continues to resolve tenant/session key; malformed/non-JWT token returns `null` and avoids unsafe fallbacks.
+- Follow-up validation: verify login flow, tenant-scoped cache behavior, and error handling with corrupted token input.
+
+### Next Planned Step
+
+- Harden [backend/app/config.py](backend/app/config.py) by removing insecure default secrets and enforcing required env values outside development.
+
