@@ -146,7 +146,21 @@ Validation notes:
 - Expected behavior: tests pass with tenant-aware dashboard route and fail if fallback behavior is reintroduced.
 - Follow-up validation: run pytest for this module in CI and gate merges touching dashboard/auth cache paths.
 
-### Next Planned Step
+### 2026-04-13 - Step 7 Completed
 
-- Add a CI job stage for backend test execution so tenant-isolation tests are enforced on pull requests.
+Change made:
+- Fixed local test runner setup by creating backend virtual environment at `backend/.venv` and installing project dependencies plus `pytest`.
+- Updated [backend/pyproject.toml](backend/pyproject.toml) to include `pytest` in the `dev` dependency group.
+
+Why this change:
+- Team velocity depends on reliable local test execution; missing pytest blocked validation and slowed iteration.
+- Adding pytest to managed dev dependencies prevents recurring setup drift on fresh environments.
+
+Risk and impact assessment:
+- Risk: Low. Tooling/development-only change.
+- Impact: High. Restores ability to run backend regression tests quickly and consistently.
+
+Validation notes:
+- Command run: `.venv\\Scripts\\python.exe -m pytest tests/test_dashboard_tenant_isolation.py -q`
+- Result: `2 passed`.
 
