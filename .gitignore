@@ -7,3 +7,5 @@ backend/app/services/__pycache__/*
 backend/app/services/cache.py
 backend/.venv/*
 backend/tests/__pycache__/*
+frontend/node_modules/.bin/*
+frontend/dist/*

@@ -182,3 +182,26 @@ Validation notes:
 - Workflow syntax updated and scoped to pull request checks.
 - Local baseline remains green for tenant isolation tests (`2 passed`).
 
+### 2026-04-13 - Step 9 Completed
+
+Change made:
+- Updated [frontend/package.json](frontend/package.json) to add a dedicated `type-check` script (`tsc -b`).
+- Updated [.github/workflows/ci.yml](.github/workflows/ci.yml) to add a `frontend-quality` pull-request job.
+- New frontend CI job installs frontend dependencies, runs `npm run lint`, and runs `npm run type-check`.
+
+Why this change:
+- Backend test gating alone leaves frontend regressions (type errors and lint regressions) undetected until later stages.
+- Enforcing lint and type checks on pull requests creates a balanced quality gate across both application layers.
+
+Risk and impact assessment:
+- Risk: Medium. Existing frontend lint/type debt may initially fail PRs until remediated.
+- Impact: High. Prevents low-level frontend defects from merging and improves release predictability.
+
+Validation notes:
+- Workflow and package script definitions updated for automated frontend quality checks.
+- Follow-up validation: execute frontend lint and type-check locally and in CI to baseline current debt.
+
+### Next Planned Step
+
+- Triage and fix current frontend lint/type failures (if any) so the new `frontend-quality` gate remains stable and actionable.
+
