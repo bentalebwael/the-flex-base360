@@ -6,24 +6,41 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+INSECURE_SECRET_KEY_DEFAULT = "debug_challenge_secret"
+INSECURE_TOKEN_ENCRYPTION_KEY_DEFAULT = "dummy_key_for_challenge_mode_only_123"
+PRODUCTION_LIKE_ENVIRONMENTS = {"production", "staging"}
+
 
 class Settings(BaseSettings):
     # Core settings
     database_url: str = "postgresql://postgres:postgres@db:5432/propertyflow"
     redis_url: str = "redis://redis:6379/0"
-    secret_key: str = "debug_challenge_secret"
+    secret_key: str = INSECURE_SECRET_KEY_DEFAULT
     
     # Optional legacy settings
     supabase_url: Optional[str] = None
     supabase_service_role_key: Optional[str] = None
     supabase_anon_key: Optional[str] = None
-    token_encryption_key: str = "dummy_key_for_challenge_mode_only_123"
+    token_encryption_key: str = INSECURE_TOKEN_ENCRYPTION_KEY_DEFAULT
     environment: str = "development"
     n8n_verification_webhook_url: Optional[str] = None
     openai_api_key: Optional[str] = None
     
     # ... allow extra fields just in case
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    def _is_production_like_environment(self) -> bool:
+        return (self.environment or "development").lower() in PRODUCTION_LIKE_ENVIRONMENTS
+
+    def _validate_security_configuration(self) -> None:
+        if not self._is_production_like_environment():
+            return
+
+        if not self.secret_key or self.secret_key == INSECURE_SECRET_KEY_DEFAULT:
+            raise ValueError("SECRET_KEY must be explicitly set to a secure value in production-like environments")
+
+        if not self.token_encryption_key or self.token_encryption_key == INSECURE_TOKEN_ENCRYPTION_KEY_DEFAULT:
+            raise ValueError("TOKEN_ENCRYPTION_KEY must be explicitly set to a secure value in production-like environments")
     
     def __init__(self, **kwargs):
         """Initialize settings with debug logging"""
@@ -41,8 +58,7 @@ class Settings(BaseSettings):
         
         for var_name, value in critical_env_vars.items():
             if value:
-                preview = value[:15] + "..." if len(value) > 15 else value
-                logger.info(f"✅ ENV {var_name}: {preview} (len: {len(value)})")
+                logger.info(f"✅ ENV {var_name}: SET (len: {len(value)})")
             else:
                 logger.info(f"❌ ENV {var_name}: NOT SET")
         
@@ -61,10 +77,11 @@ class Settings(BaseSettings):
         
         for field_name, value in loaded_values.items():
             if value:
-                preview = str(value)[:15] + "..." if len(str(value)) > 15 else str(value)
-                logger.info(f"✅ LOADED {field_name}: {preview} (len: {len(str(value))})")
+                logger.info(f"✅ LOADED {field_name}: SET (len: {len(str(value))})")
             else:
                 logger.info(f"❌ LOADED {field_name}: NOT SET")
+
+        self._validate_security_configuration()
         
         logger.info("=" * 50)
         logger.info("🏁 SETTINGS INITIALIZATION COMPLETE")

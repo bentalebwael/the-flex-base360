@@ -86,10 +86,6 @@ Validation notes:
 - Expected behavior: known tables continue operating as before; unknown tables raise and are handled by calling methods' exception handling.
 - Follow-up validation: exercise critical SecureClient paths (`get_properties`, `get_reservations`, `get_tokens`) and verify unknown table paths fail safely.
 
-### Next Planned Step
-
-- Harden [frontend/src/lib/secureApi.ts](frontend/src/lib/secureApi.ts) by removing mock token tenant fallback and strengthening JWT parsing guards.
-
 ### 2026-04-13 - Step 4 Completed
 
 Change made:
@@ -110,7 +106,23 @@ Validation notes:
 - Expected behavior: valid JWT continues to resolve tenant/session key; malformed/non-JWT token returns `null` and avoids unsafe fallbacks.
 - Follow-up validation: verify login flow, tenant-scoped cache behavior, and error handling with corrupted token input.
 
-### Next Planned Step
+### 2026-04-13 - Step 5 Completed
 
-- Harden [backend/app/config.py](backend/app/config.py) by removing insecure default secrets and enforcing required env values outside development.
+Change made:
+- Updated [backend/app/config.py](backend/app/config.py) with production-like environment validation for secret configuration.
+- Added explicit validation to fail startup if `SECRET_KEY` or `TOKEN_ENCRYPTION_KEY` are unset or still using insecure defaults in `production` or `staging`.
+- Reduced sensitive startup log exposure by logging only SET/NOT SET status and length instead of secret previews.
+
+Why this change:
+- Insecure defaults are acceptable only for local challenge/development scenarios, not for deployable environments.
+- Startup-time validation is the safest control because it prevents accidental insecure deployments from booting.
+- Removing secret previews from logs reduces credential exposure risk in log aggregation systems.
+
+Risk and impact assessment:
+- Risk: Medium. Misconfigured staging/production environments will now fail fast at startup (intended behavior).
+- Impact: High. Significantly improves deployment security posture and reduces chance of credential leakage.
+
+Validation notes:
+- Expected behavior: development environment still boots with defaults; staging/production requires explicit secure secret values.
+- Follow-up validation: run startup with `environment=production` and verify missing/default secrets stop boot; verify valid secrets allow normal startup.
 
