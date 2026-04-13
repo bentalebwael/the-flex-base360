@@ -6,7 +6,10 @@ interface RevenueData {
     total_revenue: number;
     currency: string;
     reservations_count: number;
+    period?: { granularity: string; year?: number; month?: number } | null;
 }
+
+type ReportMode = 'monthly' | 'annual' | 'all';
 
 interface RevenueSummaryProps {
     propertyId?: string;
@@ -18,19 +21,36 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
     const [data, setData] = useState<RevenueData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-
-    const activeTenant = debugTenant || 'candidate';
+    const [report, setReport] = useState<ReportMode>('monthly');
 
     useEffect(() => {
         const fetchRevenue = async () => {
             setLoading(true);
             try {
-                // Use SecureAPI to handle authentication automatically
-                // We pass the simulatedTenant option which SecureAPI will attach as a header
-                const response = await SecureAPI.getDashboardSummary(propertyId, {
-                    simulatedTenant: activeTenant,
-                    timestamp: Date.now()
-                });
+                const common = {
+                    ...(debugTenant ? { simulatedTenant: debugTenant } : {}),
+                    timestamp: Date.now(),
+                };
+                let response;
+                if (report === 'monthly') {
+                    response = await SecureAPI.getDashboardSummary(propertyId, {
+                        ...common,
+                        report: 'monthly',
+                        year: 2024,
+                        month: 3,
+                    });
+                } else if (report === 'annual') {
+                    response = await SecureAPI.getDashboardSummary(propertyId, {
+                        ...common,
+                        report: 'annual',
+                        year: 2024,
+                    });
+                } else {
+                    response = await SecureAPI.getDashboardSummary(propertyId, {
+                        ...common,
+                        report: 'all',
+                    });
+                }
                 setData(response);
             } catch (err) {
                 setError('Failed to load revenue data');
@@ -41,7 +61,7 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
         };
 
         fetchRevenue();
-    }, [propertyId, activeTenant]);
+    }, [propertyId, debugTenant, report]);
 
     if (loading) {
         return (
@@ -73,6 +93,38 @@ export const RevenueSummary: React.FC<RevenueSummaryProps> = ({ propertyId = 'pr
             )}
 
             <div className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Report</p>
+                    <div className="flex flex-wrap gap-2">
+                        {(['monthly', 'annual', 'all'] as const).map((key) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setReport(key)}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                                    report === key
+                                        ? 'bg-gray-900 text-white border-gray-900'
+                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                                }`}
+                            >
+                                {key === 'monthly' && 'March 2024'}
+                                {key === 'annual' && '2024 (annual)'}
+                                {key === 'all' && 'All time'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                {data.period && (
+                    <p className="text-xs text-gray-500 mb-4">
+                        {data.period.granularity === 'monthly' &&
+                            `Monthly · property-local · ${data.period.year}-${String(data.period.month).padStart(2, '0')}`}
+                        {data.period.granularity === 'annual' &&
+                            `Annual · property-local calendar year · ${data.period.year}`}
+                    </p>
+                )}
+                {report === 'all' && !data.period && (
+                    <p className="text-xs text-gray-500 mb-4">All time · all reservations for this property</p>
+                )}
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Revenue</h2>
