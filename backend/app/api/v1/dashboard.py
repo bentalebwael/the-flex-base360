@@ -1,17 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, Annotated
 from app.services.cache import get_revenue_summary
 from app.core.auth import authenticate_request as get_current_user
 
 router = APIRouter()
 
-@router.get("/dashboard/summary")
+@router.get("/dashboard/summary", responses={401: {"description": "Tenant context is required"}})
 async def get_dashboard_summary(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: Annotated[dict, Depends(get_current_user)]
 ) -> Dict[str, Any]:
-    
-    tenant_id = getattr(current_user, "tenant_id", "default_tenant") or "default_tenant"
+
+    tenant_id = getattr(current_user, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Tenant context is required")
     
     revenue_data = await get_revenue_summary(property_id, tenant_id)
     
