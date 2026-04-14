@@ -14,12 +14,12 @@ async def get_dashboard_summary(
     tenant_id = getattr(current_user, "tenant_id", "default_tenant") or "default_tenant"
     
     revenue_data = await get_revenue_summary(property_id, tenant_id)
-    
-    total_revenue_float = float(revenue_data['total'])
-    
+
+    # FIX: Preserve exact Decimal/string value instead of float() conversion
+    # which introduced floating-point drift (e.g. 4975.50 → 4975.4999999...)
     return {
         "property_id": revenue_data['property_id'],
-        "total_revenue": total_revenue_float,
+        "total_revenue": revenue_data['total'],
         "currency": revenue_data['currency'],
         "reservations_count": revenue_data['count']
     }
