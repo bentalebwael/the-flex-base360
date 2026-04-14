@@ -1,16 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RevenueSummary } from "./RevenueSummary";
+import { SecureAPI } from "../lib/secureApi";
 
-const PROPERTIES = [
-  { id: 'prop-001', name: 'Beach House Alpha' },
-  { id: 'prop-002', name: 'City Apartment Downtown' },
-  { id: 'prop-003', name: 'Country Villa Estate' },
-  { id: 'prop-004', name: 'Lakeside Cottage' },
-  { id: 'prop-005', name: 'Urban Loft Modern' }
-];
+// ⚠️ [BUG 1 - FIX 1/2: Frontend]
+// BEFORE: Property list was hardcoded — all 5 properties shown to every tenant
+// PROBLEM: ocean(tenant-b) saw Beach House Alpha(tenant-a's), Mountain Lodge Beta was missing
+// FIX: Fetch property list dynamically from /api/v1/dashboard/properties based on tenant_id
 
 const Dashboard: React.FC = () => {
-  const [selectedProperty, setSelectedProperty] = useState('prop-001');
+  const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const data = await SecureAPI.getDashboardProperties();
+        setProperties(data);
+        if (data.length > 0) {
+          setSelectedProperty(data[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load properties:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProperties();
+  }, []);
 
   return (
     <div className="p-4 lg:p-6 min-h-full">
@@ -33,20 +50,27 @@ const Dashboard: React.FC = () => {
                 <select
                   value={selectedProperty}
                   onChange={(e) => setSelectedProperty(e.target.value)}
+                  disabled={loading || properties.length === 0}
                   className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
-                  {PROPERTIES.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
-                  ))}
+                  {loading ? (
+                    <option>Loading...</option>
+                  ) : properties.length === 0 ? (
+                    <option>No properties found</option>
+                  ) : (
+                    properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.name}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            <RevenueSummary propertyId={selectedProperty} />
+            {selectedProperty && <RevenueSummary propertyId={selectedProperty} />}
           </div>
         </div>
       </div>
