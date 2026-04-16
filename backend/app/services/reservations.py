@@ -1,17 +1,32 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Any, List
+from typing import Any, Dict
+from zoneinfo import ZoneInfo
+from sqlalchemy import text
+
 
 async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
     Calculates revenue for a specific month.
     """
 
-    start_date = datetime(year, month, 1)
+    # Resolve property timezone (fallback to UTC)
+    property_tz = ZoneInfo("UTC")
+    if db_session:
+        result = await db_session.execute(
+            text("SELECT timezone FROM properties WHERE id = :pid"),
+            {"pid": property_id},
+        )
+        row = result.fetchone()
+        if row and row.timezone:
+            property_tz = ZoneInfo(row.timezone)
+
+    # Compute month boundaries in property timezone
+    start_date = datetime(year, month, 1, tzinfo=property_tz)
     if month < 12:
-        end_date = datetime(year, month + 1, 1)
+        end_date = datetime(year, month + 1, 1, tzinfo=property_tz)
     else:
-        end_date = datetime(year + 1, 1, 1)
+        end_date = datetime(year + 1, 1, 1, tzinfo=property_tz)
         
     print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
 
