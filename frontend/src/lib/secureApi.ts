@@ -1449,6 +1449,11 @@ export class SecureAPIClient {
   }
 
   // ============= DASHBOARD API =============
+  /** Dashboard dropdown: properties the logged-in tenant may see */
+  async loadPropertiesForCurrentTenant(): Promise<{ id: string; name: string }[]> {
+    return this.request<{ id: string; name: string }[]>('/api/v1/dashboard/properties');
+  }
+
   /**
    * Get dashboard summary with optional simulation header
    */
