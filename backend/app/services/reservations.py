@@ -1,19 +1,59 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+import pytz
+
+
+async def get_property_timezone(property_id: str, db_session=None) -> str:
+    """
+    Retrieves the timezone for a property from the database.
+    Returns 'UTC' as default if not found.
+    """
+    try:
+        from app.core.database_pool import DatabasePool
+        from sqlalchemy import text
+        
+        db_pool = DatabasePool()
+        await db_pool.initialize()
+        
+        if db_pool.session_factory:
+            async with db_pool.get_session() as session:
+                query = text("""
+                    SELECT timezone FROM properties WHERE id = :property_id
+                """)
+                result = await session.execute(query, {"property_id": property_id})
+                row = result.fetchone()
+                
+                if row and row.timezone:
+                    return row.timezone
+    except Exception as e:
+        print(f"Error fetching timezone for property {property_id}: {e}")
+    
+    return 'UTC'
+
 
 async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
-    Calculates revenue for a specific month.
+    Calculates revenue for a specific month in the property's local timezone.
+    Converts local month boundaries to UTC for database queries.
     """
-
-    start_date = datetime(year, month, 1)
+    
+    # Get property timezone
+    tz_name = await get_property_timezone(property_id, db_session)
+    property_tz = pytz.timezone(tz_name)
+    
+    # Create timezone-aware local dates for month boundaries
+    local_start = property_tz.localize(datetime(year, month, 1))
     if month < 12:
-        end_date = datetime(year, month + 1, 1)
+        local_end = property_tz.localize(datetime(year, month + 1, 1))
     else:
-        end_date = datetime(year + 1, 1, 1)
+        local_end = property_tz.localize(datetime(year + 1, 1, 1))
+    
+    # Convert to UTC for database query
+    start_date = local_start.astimezone(pytz.UTC)
+    end_date = local_end.astimezone(pytz.UTC)
         
-    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
+    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date} (local tz: {tz_name})")
 
     # SQL Simulation (This would be executed against the actual DB)
     query = """
