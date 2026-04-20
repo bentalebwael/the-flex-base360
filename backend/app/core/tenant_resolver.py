@@ -68,28 +68,30 @@ class TenantResolver:
 
         return None
 
+    # Hardcoded mapping for the demo accounts. In a real system this comes
+    # from a user_tenants table or JWT claims.
+    _EMAIL_TO_TENANT = {
+        "sunset@propertyflow.com": "tenant-a",
+        "ocean@propertyflow.com": "tenant-b",
+        "candidate@propertyflow.com": "tenant-a",
+    }
+
     @staticmethod
     async def resolve_tenant_id(user_id: str, user_email: str, token: Optional[str] = None) -> str:
         """
-        Resolve tenant ID for a user.
-        
-        Args:
-            user_id: User ID
-            user_email: User email
-            
-        Returns:
-            Tenant ID
+        Resolve a user's tenant_id, raising if no mapping exists.
+
+        Why no default: an unknown user used to fall back to "tenant-a",
+        which silently exposed Sunset Properties' data to anyone who
+        authenticated without an explicit mapping. Fail closed instead.
         """
-        # Fallback mapping by known user email.
-        if user_email == "sunset@propertyflow.com":
-            return "tenant-a"
-        if user_email == "ocean@propertyflow.com":
-            return "tenant-b"
-        if user_email == "candidate@propertyflow.com":
-            return "tenant-a"
-            
-        # Default fallback
-        return "tenant-a"
+        tenant_id = TenantResolver._EMAIL_TO_TENANT.get(user_email)
+        if not tenant_id:
+            logger.warning(
+                f"No tenant mapping for user {user_email} (id={user_id})"
+            )
+            raise ValueError(f"No tenant mapping for user {user_email}")
+        return tenant_id
 
     @staticmethod
     async def update_user_tenant_metadata(user_id: str, tenant_id: str) -> None:
