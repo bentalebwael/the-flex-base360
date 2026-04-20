@@ -92,46 +92,57 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
         
         if db_pool.session_factory:
             async with db_pool.get_session() as session:
-                # Use SQLAlchemy text for raw SQL
-                from sqlalchemy import text
-                
                 query = text("""
-                    SELECT 
-                        property_id,
-                        SUM(total_amount) as total_revenue,
-                        COUNT(*) as reservation_count
-                    FROM reservations 
+                    SELECT
+                        currency,
+                        SUM(total_amount) AS total_revenue,
+                        COUNT(*) AS reservation_count
+                    FROM reservations
                     WHERE property_id = :property_id AND tenant_id = :tenant_id
-                    GROUP BY property_id
+                    GROUP BY currency
                 """)
-                
+
                 result = await session.execute(query, {
-                    "property_id": property_id, 
-                    "tenant_id": tenant_id
+                    "property_id": property_id,
+                    "tenant_id": tenant_id,
                 })
-                row = result.fetchone()
-                
-                if row:
-                    total_revenue = Decimal(str(row.total_revenue))
-                    return {
-                        "property_id": property_id,
-                        "tenant_id": tenant_id,
-                        "total": str(total_revenue),
-                        "currency": "USD", 
-                        "count": row.reservation_count
-                    }
-                else:
-                    # No reservations found for this property
+                rows = result.fetchall()
+
+                if not rows:
+                    # No reservations: still need a sensible currency for the
+                    # response. Default to USD (matches the schema default).
                     return {
                         "property_id": property_id,
                         "tenant_id": tenant_id,
                         "total": "0.00",
                         "currency": "USD",
-                        "count": 0
+                        "count": 0,
                     }
+
+                if len(rows) > 1:
+                    # Mixing currencies in a single SUM is meaningless. Refuse
+                    # rather than silently coerce to one currency.
+                    currencies = sorted(r.currency for r in rows)
+                    raise ValueError(
+                        f"Property {property_id} has reservations in multiple "
+                        f"currencies ({', '.join(currencies)}); cannot aggregate"
+                    )
+
+                row = rows[0]
+                return {
+                    "property_id": property_id,
+                    "tenant_id": tenant_id,
+                    "total": str(Decimal(str(row.total_revenue))),
+                    "currency": row.currency or "USD",
+                    "count": row.reservation_count,
+                }
         else:
             raise Exception("Database pool not available")
             
+    except ValueError:
+        # Data-integrity problems (e.g. mixed currencies) must surface to the
+        # caller, not be hidden behind the connection-failure fallback.
+        raise
     except Exception as e:
         logger.error(f"Database error for {property_id} (tenant: {tenant_id}): {e}")
 
