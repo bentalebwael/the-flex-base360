@@ -18,7 +18,7 @@ async def list_properties(
     await db_pool.initialize()
 
     if db_pool.session_factory:
-        async with db_pool.get_session() as session:
+        async with db_pool.session_factory() as session:
             result = await session.execute(
                 text("SELECT id, name FROM properties WHERE tenant_id = :tid ORDER BY name"),
                 {"tid": tenant_id},
