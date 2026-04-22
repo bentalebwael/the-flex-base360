@@ -13,7 +13,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     SecureAPI.getProperties().then((result: any) => {
-      const items: Property[] = result?.items ?? result ?? [];
+      const items: Property[] = result?.data ?? [];
       setProperties(items);
       if (items.length > 0) setSelectedProperty(items[0].id);
     });
