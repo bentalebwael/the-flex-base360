@@ -1,6 +1,5 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import QueuePool
 import logging
 from ..config import settings
 
@@ -14,17 +13,20 @@ class DatabasePool:
     async def initialize(self):
         """Initialize database connection pool"""
         try:
-            # Create async engine with connection pooling
-            database_url = f"postgresql+asyncpg://{settings.supabase_db_user}:{settings.supabase_db_password}@{settings.supabase_db_host}:{settings.supabase_db_port}/{settings.supabase_db_name}"
+            # Create async engine with connection pooling.
+            # settings.database_url is set from DATABASE_URL env var (see docker-compose.yml).
+            # SQLAlchemy's async driver requires the postgresql+asyncpg:// scheme.
+            database_url = settings.database_url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
             
             self.engine = create_async_engine(
                 database_url,
-                poolclass=QueuePool,
-                pool_size=20,  # Number of connections to maintain
-                max_overflow=30,  # Additional connections when needed
-                pool_pre_ping=True,  # Validate connections
-                pool_recycle=3600,  # Recycle connections every hour
-                echo=False  # Set to True for SQL debugging
+                pool_size=20,
+                max_overflow=30,
+                pool_pre_ping=True,
+                pool_recycle=3600,
+                echo=False,
             )
             
             self.session_factory = async_sessionmaker(

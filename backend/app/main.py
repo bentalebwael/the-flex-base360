@@ -29,6 +29,7 @@ from .api.v1 import (
     persistent_auth,
     dashboard,
     login,
+    properties,
 )
 
 from .monitoring.middleware import PerformanceMonitoringMiddleware
@@ -190,6 +191,9 @@ app.include_router(bootstrap.router, prefix="/api/v1", tags=["bootstrap"])
 
 # Departments & Permissions
 app.include_router(departments.router, prefix="/api/v1", tags=["departments"])
+
+# Properties (tenant-scoped list for dashboard selector)
+app.include_router(properties.router, prefix="/api/v1", tags=["properties"])
 
 # Cities (for user access control - used by CityAccessContext)
 app.include_router(cities.router, prefix="/api/v1", tags=["cities"])
