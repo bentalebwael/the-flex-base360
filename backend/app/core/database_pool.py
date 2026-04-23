@@ -1,6 +1,5 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import QueuePool
 import logging
 from ..config import settings
 
@@ -14,12 +13,17 @@ class DatabasePool:
     async def initialize(self):
         """Initialize database connection pool"""
         try:
-            # Create async engine with connection pooling
-            database_url = f"postgresql+asyncpg://{settings.supabase_db_user}:{settings.supabase_db_password}@{settings.supabase_db_host}:{settings.supabase_db_port}/{settings.supabase_db_name}"
+            # Build async driver URL from settings.database_url (which is the plain
+            # postgresql:// URL from docker-compose). asyncpg needs the +asyncpg suffix.
+            database_url = settings.database_url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
             
+            # No explicit poolclass: create_async_engine defaults to AsyncAdaptedQueuePool.
+            # The previous QueuePool import is sync-only and raises
+            # "Pool class QueuePool cannot be used with asyncio engine".
             self.engine = create_async_engine(
                 database_url,
-                poolclass=QueuePool,
                 pool_size=20,  # Number of connections to maintain
                 max_overflow=30,  # Additional connections when needed
                 pool_pre_ping=True,  # Validate connections
@@ -45,8 +49,12 @@ class DatabasePool:
         if self.engine:
             await self.engine.dispose()
     
-    async def get_session(self) -> AsyncSession:
-        """Get database session from pool"""
+    def get_session(self) -> AsyncSession:
+        """Get database session from pool.
+
+        Not async: self.session_factory() is a sync call that returns an AsyncSession,
+        which is itself an async context manager. Callers use `async with db_pool.get_session() as s`.
+        """
         if not self.session_factory:
             raise Exception("Database pool not initialized")
         return self.session_factory()
