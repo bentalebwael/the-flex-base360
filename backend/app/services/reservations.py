@@ -78,9 +78,15 @@ async def calculate_total_revenue(
                         " AND (r.check_in_date AT TIME ZONE p.timezone) < :end_date"
                     )
 
+                # Aggregate by currency so mixed-currency datasets surface as a
+                # detectable state instead of a silently-wrong USD total. Today
+                # every row is USD by default, so this yields one group — but if
+                # a future import ever introduces EUR rows on the same property,
+                # we'll see it here and can refuse to fabricate an answer.
                 query = text(f"""
                     SELECT
                         r.property_id,
+                        r.currency,
                         SUM(r.total_amount) as total_revenue,
                         COUNT(*) as reservation_count
                     FROM reservations r
@@ -88,22 +94,13 @@ async def calculate_total_revenue(
                       ON p.id = r.property_id AND p.tenant_id = r.tenant_id
                     WHERE r.property_id = :property_id AND r.tenant_id = :tenant_id
                     {month_filter_sql}
-                    GROUP BY r.property_id
+                    GROUP BY r.property_id, r.currency
                 """)
 
                 result = await session.execute(query, params)
-                row = result.fetchone()
+                rows = result.fetchall()
 
-                if row:
-                    total_revenue = Decimal(str(row.total_revenue))
-                    return {
-                        "property_id": property_id,
-                        "tenant_id": tenant_id,
-                        "total": str(total_revenue),
-                        "currency": "USD",
-                        "count": row.reservation_count,
-                    }
-                else:
+                if not rows:
                     # No reservations in the requested scope
                     return {
                         "property_id": property_id,
@@ -112,6 +109,28 @@ async def calculate_total_revenue(
                         "currency": "USD",
                         "count": 0,
                     }
+
+                if len(rows) > 1:
+                    # Multi-currency: the summary contract has a single `total` +
+                    # `currency` field, so refuse to collapse. Raising surfaces
+                    # the data-quality issue instead of hiding it behind a wrong sum.
+                    currencies = sorted({r.currency for r in rows})
+                    raise ValueError(
+                        f"Multiple currencies on property={property_id} "
+                        f"tenant={tenant_id}: {currencies}. "
+                        "Dashboard summary contract requires a single currency; "
+                        "normalize upstream or extend the response to a per-currency list."
+                    )
+
+                row = rows[0]
+                total_revenue = Decimal(str(row.total_revenue))
+                return {
+                    "property_id": property_id,
+                    "tenant_id": tenant_id,
+                    "total": str(total_revenue),
+                    "currency": row.currency,
+                    "count": row.reservation_count,
+                }
         else:
             raise Exception("Database pool not available")
 

@@ -1456,7 +1456,7 @@ export class SecureAPIClient {
     return this.request<Array<{ id: string; name: string; timezone: string }>>('/api/v1/properties');
   }
 
-  async getDashboardSummary(propertyId: string, options?: { simulatedTenant?: string, month?: number, year?: number, timestamp?: number }) {
+  async getDashboardSummary(propertyId: string, options?: { month?: number, year?: number, timestamp?: number }) {
     const queryParams = new URLSearchParams({ property_id: propertyId });
     if (options?.month !== undefined && options?.year !== undefined && !Number.isNaN(options.month) && !Number.isNaN(options.year)) {
       queryParams.append('month', options.month.toString());
@@ -1466,14 +1466,10 @@ export class SecureAPIClient {
       queryParams.append('_t', options.timestamp.toString());
     }
 
-    const requestOptions: RequestInit = {};
-    if (options?.simulatedTenant) {
-      requestOptions.headers = {
-        'X-Simulated-Tenant': options.simulatedTenant
-      };
-    }
-
-    return this.request<any>(`/api/v1/dashboard/summary?${queryParams}`, requestOptions);
+    // No X-Simulated-Tenant header: the backend never read it, so sending it was
+    // dead wiring that looked like a tenant-impersonation affordance. Removed
+    // rather than wired to a real admin-only override (out of scope for this fix).
+    return this.request<any>(`/api/v1/dashboard/summary?${queryParams}`);
   }
 
   async uploadCompanyLogo(logo_url: string) {
