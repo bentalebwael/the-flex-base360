@@ -29,7 +29,8 @@ const Dashboard: React.FC = () => {
     (async () => {
       setPropertiesLoading(true);
       try {
-        const list = await SecureAPI.getProperties();
+        const response = await SecureAPI.getAllProperties();
+        const list = response.data || [];
         if (cancelled) return;
         setProperties(list);
         if (list.length > 0) setSelectedProperty(list[0].id);

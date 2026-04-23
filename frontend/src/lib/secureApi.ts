@@ -1449,13 +1449,6 @@ export class SecureAPIClient {
   }
 
   // ============= DASHBOARD API =============
-  /**
-   * Get dashboard summary with optional simulation header
-   */
-  async getProperties() {
-    return this.request<Array<{ id: string; name: string; timezone: string }>>('/api/v1/properties');
-  }
-
   async getDashboardSummary(propertyId: string, options?: { month?: number, year?: number, timestamp?: number }) {
     const queryParams = new URLSearchParams({ property_id: propertyId });
     if (options?.month !== undefined && options?.year !== undefined && !Number.isNaN(options.month) && !Number.isNaN(options.year)) {
