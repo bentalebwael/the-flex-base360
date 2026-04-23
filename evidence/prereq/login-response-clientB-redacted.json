@@ -1,0 +1,14 @@
+{
+  "access_token": "<REDACTED>",
+  "token_type": "bearer",
+  "user": {
+    "id": "user-ocean",
+    "email": "ocean@propertyflow.com",
+    "name": "Ocean Rentals Manager",
+    "is_admin": false,
+    "tenant_id": "tenant-b",
+    "permissions": [],
+    "cities": []
+  },
+  "error": null
+}

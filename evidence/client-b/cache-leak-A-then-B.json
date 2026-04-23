@@ -1,0 +1,12 @@
+# Bug 1 — cache leak, clean repro after Step 0 (mock removed, real DB flowing)
+# Two sequential GETs to /api/v1/dashboard/summary?property_id=prop-001
+# Tokens differ (sunset vs ocean). NO Redis flush between the two calls.
+
+## Client A (sunset/tenant-a) — real DB sum 2250.0 / 4 reservations, as expected
+{"property_id":"prop-001","total_revenue":2250.0,"currency":"USD","reservations_count":4}
+
+## Client B (ocean/tenant-b) — expected: 0 / 0 (Mountain Lodge Beta has no reservations)
+##                            actual:   2250.0 / 4 — IDENTICAL to Client A
+## Only explanation: Redis cache key 'revenue:prop-001' has no tenant_id, so Client B
+## reads the entry Client A just populated.
+{"property_id":"prop-001","total_revenue":2250.0,"currency":"USD","reservations_count":4}

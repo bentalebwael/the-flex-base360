@@ -1,0 +1,25 @@
+# Bug 6 — monthly filter added to /api/v1/dashboard/summary
+# Endpoint now accepts optional month & year query params. UI passes them from the new <input type="month">.
+# UTC month boundaries for now — tz-correct boundaries come with Bug 4.
+
+## prop-001 / tenant-a, no month (all-time, backward-compat)
+{"property_id":"prop-001","total_revenue":2250.0,"currency":"USD","reservations_count":4,"month":null,"year":null}
+
+## prop-001 / tenant-a, March 2024 (UTC boundaries)
+## — res-tz-1 (2024-02-29 23:30 UTC) is CURRENTLY excluded, see Bug 4 next
+{"property_id":"prop-001","total_revenue":1000.0,"currency":"USD","reservations_count":3,"month":3,"year":2024}
+
+## prop-001 / tenant-a, February 2024 (UTC boundaries) — res-tz-1 currently lands here
+{"property_id":"prop-001","total_revenue":1250.0,"currency":"USD","reservations_count":1,"month":2,"year":2024}
+
+## April 2024 — no reservations
+{"property_id":"prop-001","total_revenue":0.0,"currency":"USD","reservations_count":0,"month":4,"year":2024}
+
+## Half-specified param → 400
+{"detail":"`month` and `year` must be provided together (or both omitted for all-time)."}
+
+## Redis keys — distinct per (tenant, property, month)
+revenue:tenant-a:prop-001:all
+revenue:tenant-a:prop-001:2024-02
+revenue:tenant-a:prop-001:2024-04
+revenue:tenant-a:prop-001:2024-03

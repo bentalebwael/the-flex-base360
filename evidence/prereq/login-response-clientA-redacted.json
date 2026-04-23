@@ -1,0 +1,14 @@
+{
+  "access_token": "<REDACTED>",
+  "token_type": "bearer",
+  "user": {
+    "id": "user-sunset",
+    "email": "sunset@propertyflow.com",
+    "name": "Sunset Properties Manager",
+    "is_admin": false,
+    "tenant_id": "tenant-a",
+    "permissions": [],
+    "cities": []
+  },
+  "error": null
+}

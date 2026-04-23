@@ -1,0 +1,50 @@
+# Bug 7 — tenant-scoped property list
+# New endpoint GET /api/v1/properties takes tenant_id from the JWT ONLY (no query param override).
+# Frontend Dashboard.tsx fetches on mount and auto-selects the first returned property.
+# If the fetch fails, the UI shows an error — never a hardcoded fallback.
+
+## Client A (sunset/tenant-a) — tenant-a properties only
+[
+    {
+        "id": "prop-001",
+        "name": "Beach House Alpha",
+        "timezone": "Europe/Paris"
+    },
+    {
+        "id": "prop-002",
+        "name": "City Apartment Downtown",
+        "timezone": "Europe/Paris"
+    },
+    {
+        "id": "prop-003",
+        "name": "Country Villa Estate",
+        "timezone": "Europe/Paris"
+    }
+]
+
+## Client B (ocean/tenant-b) — tenant-b properties only; prop-001 correctly labeled 'Mountain Lodge Beta'
+[
+    {
+        "id": "prop-001",
+        "name": "Mountain Lodge Beta",
+        "timezone": "America/New_York"
+    },
+    {
+        "id": "prop-004",
+        "name": "Lakeside Cottage",
+        "timezone": "America/New_York"
+    },
+    {
+        "id": "prop-005",
+        "name": "Urban Loft Modern",
+        "timezone": "America/New_York"
+    }
+]
+
+## No auth — fail-closed with 401 (not a silent empty list)
+HTTP 401
+
+## Cross-contamination check — tenant-a response contains no tenant-b property names, and vice-versa
+tenant-a properties: ['Beach House Alpha', 'City Apartment Downtown', 'Country Villa Estate']
+tenant-b properties: ['Lakeside Cottage', 'Mountain Lodge Beta', 'Urban Loft Modern']
+overlap (must be empty): []

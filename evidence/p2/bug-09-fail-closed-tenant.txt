@@ -1,0 +1,19 @@
+# Bug 9 — dashboard endpoint fails closed when tenant is missing
+
+# Before: the endpoint used a fallback in the form
+#
+#     tenant_id = getattr(current_user, "tenant_id", "default_tenant") or "default_tenant"
+#
+# which silently substituted a nonexistent tenant id when the authenticated
+# user had none — turning auth/tenant-resolution bugs into zero-row responses
+# (a misleading success). Not firing against today's static credentials, but
+# prevention-worthy.
+#
+# After: the same line now raises 401 if tenant_id is absent from current_user.
+
+## No Authorization header at all — auth layer itself returns 401, not 500
+HTTP 401
+
+## Same fail-closed pattern applied preventively on the new /api/v1/properties
+## endpoint added for Bug 7:
+HTTP 401

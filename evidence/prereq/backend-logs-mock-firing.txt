@@ -1,0 +1,12 @@
+the-flex-base360-backend-1  | ERROR:app.core.database_pool:❌ Database pool initialization failed: 'Settings' object has no attribute 'supabase_db_user'
+the-flex-base360-backend-1  | Database error for prop-001 (tenant: tenant-a): Database pool not available
+the-flex-base360-backend-1  | INFO:     172.21.0.1:49798 - "GET /api/v1/dashboard/summary?property_id=prop-001 HTTP/1.1" 200 OK
+the-flex-base360-backend-1  | INFO:     172.21.0.1:49800 - "GET /api/v1/dashboard/summary?property_id=prop-001 HTTP/1.1" 200 OK
+the-flex-base360-backend-1  | INFO:     172.21.0.1:38616 - "OPTIONS /api/v1/dashboard/summary?property_id=prop-001&_t=1776960502436 HTTP/1.1" 200 OK
+the-flex-base360-backend-1  | ERROR:app.core.database_pool:❌ Database pool initialization failed: 'Settings' object has no attribute 'supabase_db_user'
+the-flex-base360-backend-1  | Database error for prop-001 (tenant: tenant-a): Database pool not available
+the-flex-base360-backend-1  | INFO:     172.21.0.1:38616 - "GET /api/v1/dashboard/summary?property_id=prop-001&_t=1776960502436 HTTP/1.1" 200 OK
+the-flex-base360-backend-1  | ERROR:app.core.database_pool:❌ Database pool initialization failed: 'Settings' object has no attribute 'supabase_db_user'
+the-flex-base360-backend-1  | Database error for prop-001 (tenant: tenant-a): Database pool not available
+the-flex-base360-backend-1  | INFO:     172.21.0.1:36098 - "GET /api/v1/dashboard/summary?property_id=prop-001 HTTP/1.1" 200 OK
+the-flex-base360-backend-1  | INFO:     172.21.0.1:36108 - "GET /api/v1/dashboard/summary?property_id=prop-001 HTTP/1.1" 200 OK

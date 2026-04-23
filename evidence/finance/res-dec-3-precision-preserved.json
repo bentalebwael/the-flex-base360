@@ -1,0 +1,24 @@
+# Bug 2 — Decimal precision preserved end-to-end
+
+# Before (captured earlier, see evidence/prereq and evidence/client-a/march-filtered-response.json):
+#   {"total_revenue": 2250.0, ...}         ← JSON number, float, silently lossy
+
+# After (this file):
+#   {"total_revenue": "2250.000", ...}     ← JSON string, exact NUMERIC(10,3) precision
+
+## Live API response (tenant-a, March 2024)
+{"property_id":"prop-001","total_revenue":"2250.000","currency":"USD","reservations_count":4,"month":3,"year":2024}
+
+## tenant-a, no month filter (all-time) — also a string
+{"property_id":"prop-001","total_revenue":"2250.000","currency":"USD","reservations_count":4,"month":null,"year":null}
+
+## Comparison of frontend display logic, before vs after, on a planted mills value
+## Before: Math.round(x * 100) / 100 — silently truncates the third decimal
+## After:  formatMoney(s) — string-only split, no float arithmetic
+input           | old (float + round) | new (string-only)
+----------------+---------------------+------------------
+333.334         | 333.33              | 333.334
+2250.000        | 2250.00             | 2,250.000
+1917.165        | 1917.17             | 1,917.165
+0.001           | 0.00                | 0.001
+1000000.500     | 1000000.50          | 1,000,000.500

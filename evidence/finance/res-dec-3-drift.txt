@@ -1,0 +1,34 @@
+# Bug 2 — Decimal→float precision loss
+#
+# Honest note: the current seed's prop-001 SUM is exactly 2250.000 (1250 + 333.333 +
+# 333.333 + 333.334), which happens to be a round number. The aggregate float() cast
+# therefore shows no drift in the dashboard response. But the conversion is still lossy
+# for any per-reservation display or any aggregate whose sum has non-zero mills — and
+# the frontend's Math.round(x*100)/100 unconditionally truncates the third decimal.
+
+## Planted test row (res-dec-3) stored at NUMERIC(10,3) precision
+    id     | total_amount | pg_typeof 
+-----------+--------------+-----------
+ res-dec-3 |      333.334 | numeric
+(1 row)
+
+
+## How dashboard.py:18 handles it — round-trip through Python float
+## Simulates: Decimal('333.334') → str → float → json.dumps
+Decimal (DB):       Decimal('333.334')                  # exact
+str(Decimal):       '333.334'                   # safe — cache stores this
+float(str):         333.334          # IEEE-754, no longer exact
+repr(float):        333.334
+float * 100:        33333.4   # <-- drift appears once arithmetic starts
+json.dumps(float):  '333.334'             # JSON re-truncates but the damage is done
+
+## How RevenueSummary.tsx:64 then rounds to cents
+## Simulates: Math.round(333.334 * 100) / 100 in JavaScript
+frontend input (float):   333.334
+v * 100:                  33333.4
+Math.round(v * 100):      33333
+displayed value:          333.33  // 0.004 silently lost
+
+## If any tenant ever holds a property whose summed revenue has a non-zero mills digit
+## (e.g., a single 333.334 reservation, or 1250.50 + 333.33 + 333.33 = 1917.16...),
+## the float round-trip introduces visible drift that finance sees.

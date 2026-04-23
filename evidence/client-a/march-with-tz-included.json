@@ -1,0 +1,28 @@
+# Bug 4 — tz-aware month boundaries
+# Month window built as naive timestamps in the property's LOCAL timezone (properties.timezone).
+# Postgres converts each reservation's timestamptz via AT TIME ZONE p.timezone before comparing,
+# so a Feb-29 23:30 UTC check-in on a Europe/Paris property now correctly lands in March.
+
+## DB proof — Paris-local timestamp of res-tz-1
+    id    |          utc           |     paris_local     
+----------+------------------------+---------------------
+ res-tz-1 | 2024-02-29 23:30:00+00 | 2024-03-01 00:30:00
+(1 row)
+
+
+## prop-001 / tenant-a (Europe/Paris), March 2024 — res-tz-1 INCLUDED (Paris-local Mar 1 00:30)
+{"property_id":"prop-001","total_revenue":2250.0,"currency":"USD","reservations_count":4,"month":3,"year":2024}
+
+## prop-001 / tenant-a, February 2024 — res-tz-1 NOT here anymore
+{"property_id":"prop-001","total_revenue":0.0,"currency":"USD","reservations_count":0,"month":2,"year":2024}
+
+## prop-001 / tenant-b (America/New_York) — still isolated, still 0/0 for any month
+{"property_id":"prop-001","total_revenue":0.0,"currency":"USD","reservations_count":0,"month":3,"year":2024}
+
+## Side-by-side: Paris property vs hypothetical UTC-naive comparison for res-tz-1
+  row_id  |   method    |      result      
+----------+-------------+------------------
+ res-tz-1 | UTC naive   | NOT in March
+ res-tz-1 | Paris-local | counted in March
+(2 rows)
+

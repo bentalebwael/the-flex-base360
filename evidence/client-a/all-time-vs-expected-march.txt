@@ -1,0 +1,26 @@
+# Bug 6 — UI says 'Monthly performance insights' but backend returns all-time sum
+
+## API response — sunset/tenant-a on prop-001 (no month param)
+{"property_id":"prop-001","total_revenue":2250.0,"currency":"USD","reservations_count":4}
+
+## DB truth — prop-001 / tenant-a, grouped by month
+      month_utc      | reservations |  total   
+---------------------+--------------+----------
+ 2024-02-01 00:00:00 |            1 | 1250.000
+ 2024-03-01 00:00:00 |            3 | 1000.000
+(2 rows)
+
+
+## March-only sum (UTC boundaries)
+ reservations_march | march_total 
+--------------------+-------------
+                  3 |    1000.000
+(1 row)
+
+
+## March-only sum (Europe/Paris boundaries — correct for this tenant-a property)
+ reservations_march_paris | march_total_paris 
+--------------------------+-------------------
+                        4 |          2250.000
+(1 row)
+

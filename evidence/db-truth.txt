@@ -1,0 +1,9 @@
+ property_id | tenant_id | reservations |  total   | currency 
+-------------+-----------+--------------+----------+----------
+ prop-001    | tenant-a  |            4 | 2250.000 | USD
+ prop-002    | tenant-a  |            4 | 4975.500 | USD
+ prop-003    | tenant-a  |            2 | 6100.500 | USD
+ prop-004    | tenant-b  |            4 | 1776.500 | USD
+ prop-005    | tenant-b  |            3 | 3256.000 | USD
+(5 rows)
+

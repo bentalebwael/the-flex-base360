@@ -1,0 +1,21 @@
+# Bug 8 — currency grouping + mixed-currency detection
+# Before: SUM(total_amount) across all rows, response hardcoded 'USD'.
+# After: SUM grouped by (property_id, currency); response currency sourced from DB;
+#        multi-currency aggregates return HTTP 409 Conflict with an explicit diagnostic
+#        (dashboard.py catches ValueError from the service layer and raises HTTPException(409)).
+
+## Baseline single-currency case (seed data is all USD)
+{"property_id":"prop-001","total_revenue":"2250.000","currency":"USD","reservations_count":4,"month":3,"year":2024}
+
+## Stress test — inject an EUR row on tenant-a / prop-001, query again
+INSERT 0 1
+HTTP status + body:
+{"detail":"Multiple currencies on property=prop-001 tenant=tenant-a: ['EUR', 'USD']. Dashboard summary contract requires a single currency; normalize upstream or extend the response to a per-currency list."}
+HTTP 409
+
+## Backend log line (no Traceback, just a 409 Conflict)
+Database error for prop-001 (tenant: tenant-a): Multiple currencies on property=prop-001 tenant=tenant-a: ['EUR', 'USD']. Dashboard summary contract requires a single currency; normalize upstream or extend the response to a per-currency list.
+INFO:     172.21.0.1:48040 - "GET /api/v1/dashboard/summary?property_id=prop-001&month=3&year=2024 HTTP/1.1" 409 Conflict
+
+## Clean up injected row
+DELETE 1

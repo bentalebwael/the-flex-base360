@@ -1,0 +1,13 @@
+# Bug 1 — cache leak FIXED (Step 2)
+# Same two sequential GETs as the 'before' file, no flush between.
+# Cache key is now f'revenue:{tenant_id}:{property_id}', so the two tenants hit separate entries.
+
+## Client A (sunset/tenant-a) — 2250.0 / 4 (real DB sum for Beach House Alpha)
+{"property_id":"prop-001","total_revenue":2250.0,"currency":"USD","reservations_count":4}
+
+## Client B (ocean/tenant-b) — 0 / 0 (Mountain Lodge Beta has no reservations). ISOLATED.
+{"property_id":"prop-001","total_revenue":0.0,"currency":"USD","reservations_count":0}
+
+## Redis now holds two distinct keys:
+revenue:tenant-a:prop-001
+revenue:tenant-b:prop-001

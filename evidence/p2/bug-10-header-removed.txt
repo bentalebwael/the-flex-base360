@@ -1,0 +1,13 @@
+# Bug 10 — X-Simulated-Tenant header removed from frontend
+# Previously sent on every /dashboard/summary call; backend never read it.
+# A request trace now shows only legitimate headers:
+
+## curl -v trace (relevant lines only)
+> GET /api/v1/dashboard/summary?property_id=prop-001&month=3&year=2024 HTTP/1.1
+> Host: localhost:8000
+> User-Agent: curl/8.7.1
+> Accept: */*
+> Authorization: Bearer <REDACTED>
+
+## No X-Simulated-Tenant line — header no longer sent.
+## Also removed the debugTenant/activeTenant/simulatedTenant chain in RevenueSummary.tsx + secureApi.ts.
