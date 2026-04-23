@@ -60,6 +60,11 @@ async def calculate_total_revenue(
                 params = {"property_id": property_id, "tenant_id": tenant_id}
                 month_filter_sql = ""
                 if month is not None and year is not None:
+                    # Month window is expressed as naive timestamps in the property's
+                    # local timezone. Postgres converts each reservation's timestamptz
+                    # into that local zone via `AT TIME ZONE p.timezone` before comparing,
+                    # so a Feb-29 23:30 UTC check-in on a Europe/Paris property is
+                    # correctly counted as March.
                     start_date = datetime(year, month, 1)
                     end_date = (
                         datetime(year, month + 1, 1)
@@ -69,19 +74,21 @@ async def calculate_total_revenue(
                     params["start_date"] = start_date
                     params["end_date"] = end_date
                     month_filter_sql = (
-                        " AND check_in_date >= :start_date"
-                        " AND check_in_date < :end_date"
+                        " AND (r.check_in_date AT TIME ZONE p.timezone) >= :start_date"
+                        " AND (r.check_in_date AT TIME ZONE p.timezone) < :end_date"
                     )
 
                 query = text(f"""
                     SELECT
-                        property_id,
-                        SUM(total_amount) as total_revenue,
+                        r.property_id,
+                        SUM(r.total_amount) as total_revenue,
                         COUNT(*) as reservation_count
-                    FROM reservations
-                    WHERE property_id = :property_id AND tenant_id = :tenant_id
+                    FROM reservations r
+                    JOIN properties p
+                      ON p.id = r.property_id AND p.tenant_id = r.tenant_id
+                    WHERE r.property_id = :property_id AND r.tenant_id = :tenant_id
                     {month_filter_sql}
-                    GROUP BY property_id
+                    GROUP BY r.property_id
                 """)
 
                 result = await session.execute(query, params)
